@@ -1,0 +1,197 @@
+﻿@page "/admin/profile"
+@using Шилов.Components.Classes
+@using Npgsql
+@inject NpgsqlConnection dbConnection
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+<Sidebar />
+
+<div class="admin-profile-container">
+    <div class="profile-card">
+        <h2 class="profile-title">Редактирование профиля администратора</h2>
+
+        <form class="profile-form" @onsubmit="SaveAdmin">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Имя</label>
+                    <input type="text" class="form-input" @bind="admin.FirstName" />
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Фамилия</label>
+                    <input type="text" class="form-input" @bind="admin.LastName" />
+                </div>
+
+                <div class="form-group span-2">
+                    <label class="form-label">Email</label>
+                    <input type="text" class="form-input" @bind="admin.email" />
+                </div>
+
+                <div class="form-group span-2">
+                    <label class="form-label">Логин</label>
+                    <input type="text" class="form-input" @bind="admin.login" />
+                </div>
+
+                <div class="form-group span-2">
+                    <label class="form-label">Новый пароль</label>
+                    <input type="password" class="form-input" @bind="newPassword"
+                           placeholder="Оставьте пустым, если не нужно менять" />
+                </div>
+
+                <div class="form-group span-2">
+                    <label class="form-label">Роль</label>
+                    <input type="text" class="form-input" @bind="admin.role" disabled />
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Сохранить
+                </button>
+                <button type="button" class="btn btn-secondary" @onclick="Cancel">
+                    Отмена
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .admin-profile-container {
+        display: flex;
+        justify-content: center;
+        margin-left:500px;
+        padding: 2rem;
+        width:90vh;
+    }
+
+    .profile-card {
+        width: 100%;
+        max-width: 600px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        padding: 2rem;
+    }
+
+    .profile-title {
+        font-size: 1.5rem;
+        font-weight: 500;
+        margin-bottom: 1.5rem;
+        color: #333;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+    }
+
+    .span-2 {
+        grid-column: span 2;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        color: #555;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 1rem;
+        transition: border-color 0.3s;
+    }
+
+        .form-input:focus {
+            border-color: #4285f4;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+        }
+
+        .form-input:disabled {
+            background-color: #f5f5f5;
+            cursor: not-allowed;
+        }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 4px;
+        font-size: 1rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: background-color 0.3s;
+    }
+
+    .btn-primary {
+        background-color: #4285f4;
+        color: white;
+    }
+
+        .btn-primary:hover {
+            background-color: #3367d6;
+        }
+
+    .btn-secondary {
+        background-color: #f1f1f1;
+        color: #333;
+    }
+
+        .btn-secondary:hover {
+            background-color: #e0e0e0;
+        }
+</style>
+
+@code {
+    private User admin = new User();
+    private string newPassword = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        admin = await User.GetUser(3, dbConnection);
+    }
+
+    private async Task SaveAdmin()
+    {
+        try
+        {
+            if (!string.IsNullOrEmpty(newPassword))
+            {
+                admin.password = newPassword;
+            }
+
+            await User.EditAccount(admin, 3, dbConnection);
+
+            // Здесь можно добавить уведомление об успехе через JS или свой компонент
+            await JSRuntime.InvokeVoidAsync("alert", "Профиль успешно обновлен");
+            NavigationManager.NavigateTo("/adminManager");
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Ошибка: {ex.Message}");
+        }
+    }
+
+    private void Cancel()
+    {
+        NavigationManager.NavigateTo("/adminManager");
+    }
+}

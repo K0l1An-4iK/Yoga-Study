@@ -1,0 +1,273 @@
+﻿@page "/manageGroup"
+@using Шилов.Components.Classes;
+@using Npgsql
+@inject IJSRuntime JSRuntime
+@inject NpgsqlConnection dbConnection
+@inject NavigationManager NavigationManager
+<Sidebar />
+<link href="/ModalWindowStyle.css" rel="stylesheet" />
+<link href="/TableStyle.css" rel="stylesheet" />
+<div class="main-content">
+    <div class="zg">
+        <h2>Управление группами</h2>
+        <button @onclick="ShowAddModal" class="action-btn add-button">
+            <i class="fa-solid fa-plus"></i> Добавить группу
+        </button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Название</th>
+                <th>Инструктор</th>
+                <th>Цель</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var group in groups)
+            {
+                <tr>
+                    <td>@group.Id</td>
+                    <td>@group.name</td>
+                    <td>@GetInstructorName(group.instructor_id)</td>
+                    <td>@group.goal</td>
+                    <td>
+                        <button @onclick="() => ShowEditModal(group)" class="action-btn editButton">
+                            <i class="fas fa-edit"></i> Редактировать
+                        </button>
+                        <button @onclick="() => DeleteGroup(group.Id)" class="action-btn deleteButton">
+                            <i class="fas fa-trash"></i> Удалить
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<!-- Модальное окно добавления -->
+@if (showAddModal)
+{
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <h2>Добавление группы</h2>
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="error-message">@message</div>
+            }
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Название группы</label>
+                    <input @bind="newGroup.name" class="form-input" placeholder="Введите название" />
+                </div>
+
+                <div class="form-group">
+                    <label>Цель</label>
+                    <input @bind="newGroup.goal" class="form-input" placeholder="Введите цель группы" />
+                </div>
+
+
+                <div class="modal-buttons">
+                    <button @onclick="AddGroup" class="save-button">Добавить</button>
+                    <button @onclick="CloseModal" class="cancel-button">Отмена</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Модальное окно редактирования -->
+@if (showEditModal)
+{
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <h2>Редактирование группы</h2>
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="error-message">@message</div>
+            }
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Название группы</label>
+                    <input @bind="currentGroup.name" class="form-input" />
+                </div>
+
+                <div class="form-group">
+                    <label>Инструктор</label>
+                    <select @bind="currentGroup.instructor_id" class="form-input">
+                        <option value="-1">Не назначен</option>
+                        @foreach (var instructor in getInst(instructors))
+                        {
+                            <option value="@instructor.instructor_id">
+                                @instructor.FirstName @instructor.LastName
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Цель</label>
+                    <input @bind="currentGroup.goal" class="form-input" />
+                </div>
+
+                <div class="modal-buttons">
+                    <button @onclick="SaveGroup" class="save-button">Сохранить</button>
+                    <button @onclick="CloseModal" class="cancel-button">Отмена</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .zg {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    }
+
+    .zg h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #2c3e50;
+    }
+</style>
+@code {
+    List<Group> groups = new List<Group>();
+    List<Instructor> instructors = new List<Instructor>();
+    Group currentGroup = new Group();
+    Group newGroup = new Group();
+    bool showAddModal = false;
+    bool showEditModal = false;
+    public string message = string.Empty;
+
+    int oldgroup;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        groups = await Group.GetListGroup(dbConnection);
+        instructors = await Instructor.GetListInstructor(dbConnection);
+    }
+
+    private string GetInstructorName(int instructorId)
+    {
+        var instructor = instructors.FirstOrDefault(i => i.instructor_id == instructorId);
+        return instructor != null ? $"{instructor.FirstName} {instructor.LastName}" : "Не назначен";
+    }
+
+    private void ShowAddModal()
+    {
+        newGroup = new Group();
+        showAddModal = true;
+        message = string.Empty;
+    }
+
+    private void ShowEditModal(Group group)
+    {
+        oldgroup = group.Id;
+        currentGroup = new Group
+            {
+                Id = group.Id,
+                name = group.name,
+                instructor_id = group.instructor_id,
+                goal = group.goal,
+                client_id_list = group.client_id_list,
+            };
+        showEditModal = true;
+        message = string.Empty;
+    }
+
+    private void CloseModal()
+    {
+        showAddModal = false;
+        showEditModal = false;
+        message = string.Empty;
+    }
+
+    private async Task AddGroup()
+    {
+        if (string.IsNullOrWhiteSpace(newGroup.name))
+        {
+            message = "Название группы обязательно";
+            return;
+        }
+
+        try
+        {
+            await Group.AddGroup(newGroup, dbConnection);
+            await LoadData();
+            showAddModal = false;
+            message = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            message = $"Ошибка при добавлении: {ex.Message}";
+        }
+    }
+
+    private async Task SaveGroup()
+    {
+        if (string.IsNullOrWhiteSpace(currentGroup.name)||
+        string.IsNullOrWhiteSpace(currentGroup.goal)||
+        currentGroup.instructor_id<=0)
+        {
+            message = "Имя группы и цель обязательны для заполнения";
+            return;
+        }
+
+        try
+        {
+            await Group.UpdateGroup(currentGroup, oldgroup, dbConnection);
+            await LoadData();
+            showEditModal = false;
+            message = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            message = $"Ошибка при сохранении: {ex.Message}";
+        }
+    }
+
+    private async Task DeleteGroup(int groupId)
+    {
+        bool confirm = await JSRuntime.InvokeAsync<bool>("confirm",
+            "Вы уверены, что хотите удалить эту группу?");
+
+        if (confirm)
+        {
+            try
+            {
+                await Group.DeleteGroup(groupId, dbConnection);
+                await LoadData();
+            }
+            catch (Exception ex)
+            {
+                message = $"Ошибка при удалении: {ex.Message}";
+            }
+        }
+    }
+
+    private List<Instructor> getInst(List<Instructor> instructors)
+    {
+        List<Instructor> newList = instructors;
+        foreach(var group in groups)
+        {
+            foreach(var inst in newList.ToList())
+            {
+                if (group.instructor_id == inst.instructor_id)
+                {
+                    newList.Remove(inst);
+                }
+            }
+        }
+        return newList;
+    }
+}

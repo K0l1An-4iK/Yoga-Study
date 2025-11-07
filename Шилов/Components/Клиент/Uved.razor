@@ -1,0 +1,225 @@
+﻿@page "/uved/{Id:int}"
+@using Шилов.Components.Classes;
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@using Npgsql
+@inject NpgsqlConnection dbConnection
+<SidebarForClient ClientId="@Id" />
+
+<div class="notifications-container">
+    <div class="notifications-header">
+        <h2><i class="fas fa-bell"></i> Мои уведомления</h2>
+        <div class="client-info">
+            <span class="client-name">@client.LastName @client.FirstName</span>
+            <span class="client-id">ID: @client.client_Id</span>
+        </div>
+    </div>
+
+    @if (listMsg.Any())
+    {
+        <div class="notifications-list">
+            @foreach (var msg in listMsg)
+            {
+                <div class="notification-card @(expandedMessages.Contains(msg.messageId) ? "expanded" : "")">
+                    <div class="notification-content" @onclick="(() => ToggleMessage(msg.messageId))">
+                        <div class="message-text">
+                            @if (expandedMessages.Contains(msg.messageId) || msg.message_text.Length <= 100)
+                            {
+                                @msg.message_text
+                            }
+                            else
+                            {
+                                @msg.message_text.Substring(0, 100)
+
+                                <span>...</span>
+                            }
+                        </div>
+                        <div class="message-meta">
+                            <span class="message-id">#@msg.messageId</span>
+                            @if (msg.message_text.Length > 100)
+                            {
+                                <span class="expand-hint">
+                                    @(expandedMessages.Contains(msg.messageId) ? "Свернуть" : "Развернуть")
+                                </span>
+                            }
+                        </div>
+                    </div>
+                    <button class="delete-btn" @onclick="(() => DeleteMessage(msg.messageId))">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">
+            <i class="far fa-bell-slash"></i>
+            <p>Нет новых уведомлений</p>
+        </div>
+    }
+</div>
+
+<style>
+    /* Все предыдущие стили остаются такими же */
+
+    .notification-card {
+        cursor: pointer;
+    }
+
+    .message-text {
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .expand-hint {
+        color: #3498db;
+        font-size: 12px;
+        text-decoration: underline;
+    }
+
+    .notification-card.expanded {
+        border-left-color: #2ecc71;
+    }
+
+    .notifications-container {
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 20px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .notifications-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+        .notifications-header h2 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+    .client-info {
+        display: flex;
+        flex-direction: column;
+        text-align: right;
+        font-size: 14px;
+        color: #7f8c8d;
+    }
+
+    .client-name {
+        font-weight: 600;
+        color: #2c3e50;
+    }
+
+    .notifications-list {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .notification-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: white;
+        border-radius: 8px;
+        padding: 15px 20px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        transition: transform 0.2s, box-shadow 0.2s;
+        border-left: 4px solid #3498db;
+    }
+
+        .notification-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+    .notification-content {
+        flex-grow: 1;
+    }
+
+    .message-text {
+        font-size: 15px;
+        color: #34495e;
+        margin-bottom: 5px;
+    }
+
+    .message-meta {
+        display: flex;
+        gap: 15px;
+        font-size: 12px;
+        color: #95a5a6;
+    }
+
+    .delete-btn {
+        background: none;
+        border: none;
+        color: #e74c3c;
+        cursor: pointer;
+        font-size: 16px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        transition: background 0.2s;
+    }
+
+        .delete-btn:hover {
+            background: #fdeaea;
+        }
+
+    .empty-state {
+        text-align: center;
+        padding: 50px 20px;
+        color: #bdc3c7;
+    }
+
+        .empty-state i {
+            font-size: 50px;
+            margin-bottom: 15px;
+        }
+
+        .empty-state p {
+            font-size: 18px;
+            margin: 0;
+        }
+</style>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    Client client = new Client();
+    List<Message> listMsg = new List<Message>();
+    HashSet<int> expandedMessages = new HashSet<int>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        client = await Client.GetClient(Id, dbConnection);
+        listMsg = await Message.GetListMessage(client.client_Id, dbConnection);
+    }
+
+    private async Task DeleteMessage(int messageId)
+    {
+        await Message.DeleteMessage(messageId, dbConnection);
+        listMsg = await Message.GetListMessage(client.client_Id, dbConnection);
+    }
+
+    private void ToggleMessage(int messageId)
+    {
+        if (expandedMessages.Contains(messageId))
+        {
+            expandedMessages.Remove(messageId);
+        }
+        else
+        {
+            expandedMessages.Add(messageId);
+        }
+    }
+}

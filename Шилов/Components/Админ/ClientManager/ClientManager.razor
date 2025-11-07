@@ -1,0 +1,1247 @@
+﻿@page "/clientManager"
+@using Шилов.Components.Classes;
+@using Npgsql
+@inject NpgsqlConnection dbConnection
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+<Sidebar/>
+<link href="/ModalWindowStyle.css" rel="stylesheet" />
+<link href="/TableStyle.css" rel="stylesheet" />
+<div class="main-content">
+    <h2>Управление клиентами</h2>
+    <div class="zg">
+        <div class="button-groups-container">
+            <!-- Группа "Работа с клиентами" -->
+            <div class="button-group">
+                <div class="subgroup-title">Работа с клиентами</div>
+                <div class="buttons-row">
+                    <button @onclick="ShowAddModal" class="action-btn add-button-anket">
+                        <i class="fa-solid fa-user-plus"></i> Регистрация анкеты
+                    </button>
+                    <button @onclick="ShowPosClientChoice" class="action-btn view-pos">
+                        <i class="fa-solid fa-person-walking"></i> Просмотр посещаемости
+                    </button>
+                </div>
+            </div>
+
+            <!-- Группа "Работа с абонементами" -->
+            <div class="button-group">
+                <div class="subgroup-title">Работа с абонементами клиентов</div>
+                <div class="buttons-row">
+                    <button @onclick="ShowDeleteSubCl" class="action-btn deleteButton">
+                        <i class="fas fa-trash"></i> Удаление
+                    </button>
+                    <button @onclick="ShowAddSubscr" class="action-btn add-button">
+                        <i class="fa-solid fa-plus"></i> Оформить новый
+                    </button>
+                    <button @onclick="ShowFreezModal" class="action-btn freeze-button">
+                        <i class="fa-solid fa-snowflake"></i> Заморозка
+                    </button>
+                    <button @onclick="ShowNoFreezModal" class="action-btn notfreeze-button">
+                        <i class="fa-solid fa-sun"></i> Разморозка
+                    </button>
+                    <button @onclick="ShowExtendModal" class="action-btn extend-button">
+                        <i class="fa-solid fa-calendar-plus"></i> Продление
+                    </button>
+                    <button @onclick="ShowModalSub" class="action-btn viewSub">
+                        <i class="fa-solid fa-ticket"></i> Просмотр
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="filter">
+            <div class="filter-section">
+                <h3>Фильтры по группам</h3>
+                <div class="filter-options">
+                    <label class="filter-option">
+                        <input type="checkbox"
+                               checked="@selectedNoGroup"
+                               @onchange="ToggleNoGroupFilter" />
+                        Без группы
+                    </label>
+                    @foreach (var group in groups)
+                    {
+                        <label class="filter-option">
+                            <input type="checkbox"
+                            checked="@(selectedGroups.Contains(group.Id))"
+                            @onchange="() => ToggleGroupFilter(group.Id)" />
+                            @getGroup(group.Id) (Цель: @group.goal)
+                        </label>
+                    }
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <h3>Фильтры по статусу</h3>
+                <div class="filter-options">
+                    @foreach (var status in statuses)
+                    {
+                        <label class="filter-option">
+                            <input type="checkbox"
+                            checked="@(selectedStatuses.Contains(status))"
+                            @onchange="() => ToggleStatusFilter(status)" />
+                            @status
+                        </label>
+                    }
+                </div>
+            </div>
+
+            <div class="filter-actions">
+                <button @onclick="ApplyFilters" class="apply-filters-btn">
+                    Применить фильтры
+                </button>
+                <button @onclick="ResetFilters" class="reset-filters-btn">
+                    Сбросить фильтры
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="scroll-table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Фамилия</th>
+                    <th>Имя</th>
+                    <th>Группа</th>
+                    <th>Логин</th>
+                    <th>Email</th>
+                    <th>Пароль</th>
+                    <th>Абонемент</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (Client client in clients)
+                {
+                    <tr>
+                        <td>@client.client_Id</td>
+                        <td>@client.LastName</td>
+                        <td>@client.FirstName</td>
+                        <td>@getGroup(@client.group_id)</td>
+                        <td>@client.login</td>
+                        <td>@client.email</td>
+                        <td>@client.password</td>
+                        <td>@getAbonementStatus(client)</td>
+                        <td>
+                            <button @onclick="() => ShowEditModal(client)" class="action-btn editButton">
+                                <i class="fas fa-edit"></i> Редактировать
+                            </button>
+                            <button @onclick="() => RemoveClient(client)" class="action-btn deleteButton">
+                                <i class="fas fa-trash"></i> Удалить
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+@if (showAddModal)
+{
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <h2>Регистрация анкеты клиента</h2>
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="error-message">@message</div>
+            }
+            <div class="modal-body">
+
+                <div class="form-group">
+                    <label>Логин</label>
+                    <input @bind="newClient.login" class="form-input" placeholder="Введите логин" />
+                </div>
+
+                <div class="form-group">
+                    <label>Email</label>
+                    <input @bind="newClient.email" type="email" class="form-input" placeholder="Введите email" />
+                </div>
+
+                <div class="form-group">
+                    <label>Пароль</label>
+                    <input @bind="newClient.password" type="password" class="form-input" placeholder="Введите пароль" />
+                </div>
+
+                <div class="form-group">
+                    <label>Имя</label>
+                    <input @bind="newClient.FirstName" class="form-input" placeholder="Введите имя" />
+                </div>
+
+                <div class="form-group">
+                    <label>Фамилия</label>
+                    <input @bind="newClient.LastName" class="form-input" placeholder="Введите фамилию" />
+                </div>
+
+
+                <div class="form-group">
+                    <label>Возраст</label>
+                    <input @bind=ageText class="form-input" placeholder="Введите возраст" />
+                </div>
+
+                <div class="form-group">
+                    <label>Уровень подготовки</label>
+                    <textarea @bind=newAnket.lv_training
+                    id="lvtraining"
+                    class="form-textarea"
+                    rows="4"
+                    placeholder="Введите Уровень подготовки"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Цель</label>
+                    <input @bind=newAnket.goal class="form-input" placeholder="Введите цель занятий" />
+                </div>
+
+                <div class="form-group">
+                    <label>Противопоказания</label>
+                    <input @bind=newAnket.protivipokazania class="form-input" placeholder="Введите противопоказания (если есть)" />
+                </div>
+
+                <div class="form-group">
+                    <label>Группа</label>
+                    <select @bind="group_id" class="form-input">
+                        <option value="">Выберите группу</option>
+                        @foreach (var group in groups)
+                        {
+                            <option value="@group.Id">ID: @group.Id, Name: @getGroup(group.Id), Цель: @group.goal</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button @onclick="() => AddNewClient(newClient)" class="save-button">Добавить</button>
+                <button @onclick="CloseModal" class="cancel-button">Отмена</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showEditModal)
+{
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <h2>Редактирование анкеты клиента</h2>
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="error-message">@message</div>
+            }
+            <div class="modal-body">
+
+                <div class="form-group">
+                    <label>Логин</label>
+                    <input @bind="currentClient.login" class="form-input" placeholder="Введите логин" />
+                </div>
+
+                <div class="form-group">
+                    <label>Email</label>
+                    <input @bind="currentClient.email" type="email" class="form-input" placeholder="Введите email" />
+                </div>
+
+                <div class="form-group">
+                    <label>Пароль</label>
+                    <input @bind="currentClient.password" type="password" class="form-input" placeholder="Введите пароль" />
+                </div>
+
+                <div class="form-group">
+                    <label>Имя</label>
+                    <input @bind="currentClient.FirstName" class="form-input" placeholder="Введите имя" />
+                </div>
+
+                <div class="form-group">
+                    <label>Фамилия</label>
+                    <input @bind="currentClient.LastName" class="form-input" placeholder="Введите фамилию" />
+                </div>
+
+
+                <div class="form-group">
+                    <label>Возраст</label>
+                    <input @bind=currentAnket.age class="form-input" placeholder="Введите возраст" />
+                </div>
+
+                <div class="form-group">
+                    <label>Уровень подготовки</label>
+                    <textarea @bind=currentAnket.lv_training
+                    id="lvtraining"
+                    class="form-textarea"
+                    rows="4"
+                    placeholder="Введите Уровень подготовки"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Цель</label>
+                    <input @bind=currentAnket.goal class="form-input" placeholder="Введите цель занятий" />
+                </div>
+
+                <div class="form-group">
+                    <label>Противопоказания</label>
+                    <input @bind=currentAnket.protivipokazania class="form-input" placeholder="Введите противопоказания (если есть)" />
+                </div>
+
+                <div class="form-group">
+                    <label>Группа</label>
+                    <select @bind=currentClient.group_id class="form-input">
+                        <option value="">ID: @currentClient.group_id, Name: @getGroup(currentClient.group_id)</option>
+                        @foreach (var group in groups)
+                        {
+                            <option value="@group.Id">ID: @group.Id, Name: @getGroup(group.Id), Цель: @group.goal</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button @onclick="() => EditClient(currentClient, currentAnket)" class="save-button">Сохранить</button>
+                <button @onclick="CloseModal" class="cancel-button">Отмена</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showAddModalSub)
+{
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <h2>Оформление нового абонемента абонемента</h2>
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="error-message">@message</div>
+            }
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Выберите клиента</label>
+                    <select @bind=Id_Client class="form-input">
+                        @foreach (var cl in clients)
+                        {
+                            @if (cl.client_abonemnt <= 0)
+                            {
+                                <option value=@cl.user_id>@cl.LastName @cl.FirstName, ID=@cl.user_id</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="modal-buttons">
+                    <button @onclick="() => AddSubscr()" class="save-button">Оформить</button>
+                    <button @onclick="CloseModal" class="cancel-button">Отмена</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showFreezeModal)
+{
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <h2>Заморозка абонемента</h2>
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="error-message">@message</div>
+            }
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Выберите клиента</label>
+                    <select @bind=Id_Client_Freez class="form-input">
+                        @foreach (var cl in clients)
+                        {
+                            @if (cl.client_abonemnt > 0)
+                            {
+                                <option value=@cl.client_abonemnt>@cl.LastName @cl.FirstName, ID=@cl.user_id</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="modal-buttons">
+                    <button @onclick="() => Freez(Id_Client_Freez)" class="save-button">Заморозка</button>
+                    <button @onclick="CloseModal" class="cancel-button">Отмена</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showNoFreezeModal)
+{
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <h2>Разморозка абонемента</h2>
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="error-message">@message</div>
+            }
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Выберите клиента</label>
+                    <select @bind=Id_Client_Not_Freez class="form-input">
+                        @foreach (var cl in clients)
+                        {
+                            @if (cl.client_abonemnt > 0){
+                                <option value=@cl.client_abonemnt>@cl.LastName @cl.FirstName, ID=@cl.user_id</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="modal-buttons">
+                    <button @onclick="() => NotFreez(Id_Client_Not_Freez)" class="save-button">Разморозка</button>
+                    <button @onclick="CloseModal" class="cancel-button">Отмена</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showExtendModal)
+{
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <h2>Продление абонемента</h2>
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="error-message">@message</div>
+            }
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Выберите клиента</label>
+                    <select @bind=Id_Client_Extend class="form-input">
+                        @foreach (var cl in clients)
+                        {
+                            @if(cl.client_abonemnt > 0)
+                            {
+                                <option value=@cl.client_abonemnt>@cl.LastName @cl.FirstName, ID=@cl.user_id</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="modal-buttons">
+                    <button @onclick="() => Extend()" class="save-button">Продлить абонемент</button>
+                    <button @onclick="CloseModal" class="cancel-button">Отмена</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showDeleteSubCl)
+{
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <h2>Выберите пользователя для удаления его абонемента</h2>
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="error-message">@message</div>
+            }
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Выберите клиента</label>
+                    <select @bind=Id_Client_Delete_Sub class="form-input">
+                        @foreach (var cl in clients)
+                        {
+                            @if (cl.client_abonemnt > 0)
+                            {
+                                <option value=@cl.client_Id>@cl.LastName @cl.FirstName, ID=@cl.user_id</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="modal-buttons">
+                    <button @onclick="() => DeleteSubCLient(Id_Client_Delete_Sub)" class="save-button">Удалить абонемент</button>
+                    <button @onclick="CloseModal" class="cancel-button">Отмена</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showModalSub)
+{
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <h2>Выберите пользователя для просмотра абонемента</h2>
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="error-message">@message</div>
+            }
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Выберите клиента</label>
+                    <select @bind=Id_Client_View_Sub class="form-input">
+                        @foreach (var cl in clients)
+                        {
+                            @if (cl.client_abonemnt > 0)
+                            {
+                                <option value=@cl.client_abonemnt>@cl.LastName @cl.FirstName, ID=@cl.user_id</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="modal-buttons">
+                    <button @onclick="() => ShowModalViewSubCL(Id_Client_View_Sub)" class="save-button">Просмотр абонмента</button>
+                    <button @onclick="CloseModal" class="cancel-button">Отмена</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (viewSubClientModal)
+{
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <h2>Абонемент пользователя</h2>
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="error-message">@message</div>
+            }
+            <div class="modal-body">
+                <div class="form-group">
+                    <div class="form-group">
+                        <label>Начало действия</label>
+                        <input type="text" class="form-input" value=@viewSub.start_time.ToString("dd.MM.yyyy") disabled />
+                    </div>
+                    <div class="form-group">
+                        <label>Конец действия</label>
+                        <input type="text" class="form-input" value=@viewSub.end_time.ToString("dd.MM.yyyy") disabled />
+                    </div>
+                    <div class="form-group">
+                        <label>Статус абонемента</label>
+                        <input type="text" class="form-input" value=@viewSub.status disabled />
+                    </div>
+                    <div class="form-group">
+                        <label>Дней осталось</label>
+                        <input type="text" class="form-input" value=@viewSub.days disabled />
+                    </div>
+                </div>
+                <div class="modal-buttons">
+                    <button @onclick="CloseModal" class="cancel-button">Отмена</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showChoiceClientPos)
+{
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <h2>Выбор клиента для просмотра посещаемости</h2>
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="error-message">@message</div>
+            }
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Выберите клиента</label>
+                    <select @bind=Id_Client_Pos class="form-input">
+                        @foreach (var cl in clients)
+                        {
+                            <option value=@cl.client_Id>@cl.LastName @cl.FirstName, ID=@cl.user_id</option>
+                        }
+                    </select>
+                </div>
+                <div class="modal-buttons">
+                    <button @onclick="() => ShowPosClient(Id_Client_Pos)" class="save-button">Просмотр поесщаемости</button>
+                    <button @onclick="CloseModal" class="cancel-button">Отмена</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showPos)
+{
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <h2>Посещаемость клиента</h2>
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="error-message">@message</div>
+            }
+            <div class="modal-body">
+                <div class="form-group">
+
+                    @foreach(var pos in listPos)
+                    {
+                        <div class="info-grid">
+                            <div class="info-row">
+                                <span class="info-label">Дата:</span>
+                                <span class="info-value">@pos.Date.ToString("dd.MM.yyyy")</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Время:</span>
+                                <span class="info-value">@(pos.StartTime / 1000 / 60 / 60):00 - @(pos.EndTime / 1000 / 60 / 60):00</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Группа:</span>
+                                <span class="info-value">@getGroup(pos.GroupId)</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Зал:</span>
+                                <span class="info-value">№ @pos.number_room</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button @onclick="CloseModal" class="cancel-button">Отмена</button>
+            </div>
+        </div>
+    </div>
+}
+
+
+<style>
+    .filter {
+    display: flex;
+    gap: 30px;
+    margin-bottom: 5px;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    }
+
+    .filter-section {
+    flex: 1;
+    }
+
+    .filter-section h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #2c3e50;
+    font-size: 16px;
+    }
+
+    .filter-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 10px;
+    }
+
+    .filter-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 5px 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    }
+
+    .filter-option:hover {
+    background-color: #e9ecef;
+    }
+
+    .filter-option input[type="checkbox"] {
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+    }
+
+    .filter-actions {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 10px;
+    }
+
+    .apply-filters-btn {
+    padding: 8px 16px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    }
+
+    .apply-filters-btn:hover {
+    background-color: #218838;
+    }
+
+    .reset-filters-btn {
+    padding: 8px 16px;
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    }
+
+    .reset-filters-btn:hover {
+    background-color: #c82333;
+    }
+
+    .scroll-table-wrapper {
+    overflow-y: auto;
+    max-height: 425px; /* или любая другая подходящая высота */
+    margin-top: 5px; /* отступ от кнопок */
+    }
+    /**/
+    /* Стили для модального окна посещаемости */
+    .info-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    }
+
+    .info-row {
+    display: flex;
+    align-items: flex-start;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+    }
+
+    .info-row.full-width {
+    flex-direction: column;
+    }
+
+    .info-label {
+    font-weight: 600;
+    color: #2c3e50;
+    width: 120px;
+    flex-shrink: 0;
+    }
+
+    .info-value {
+    color: #34495e;
+    flex-grow: 1;
+    }
+
+    .visitors-list {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    }
+
+    .visitor-item {
+    background-color: #f8f9fa;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    border: 1px solid #e0e0e0;
+    }
+
+    .no-visitors {
+    color: #95a5a6;
+    font-style: italic;
+    }
+
+    /**/
+    .button-groups-container {
+    margin-top: 25px;
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    width: 100%;
+    }
+
+    /* Общая обёртка группы кнопок */
+    .button-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 15px;
+    background-color: #f9f9f9;
+    }
+
+    /* Заголовок подгруппы */
+    .subgroup-title {
+    font-weight: 700;
+    font-size: 20px;
+    color: #2c3e50;
+    text-align: center;
+    margin-bottom: 10px;
+    white-space: nowrap;
+    }
+
+    /* Строка кнопок */
+    .buttons-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 30px;
+    justify-content: center;
+    padding-bottom: 5px;
+    }
+
+    /* Контейнер из двух колонок */
+    .button-subgroup {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 15px;
+    background-color: #f9f9f9;
+    width: 100%;
+    }
+
+    /* Контейнер для группы кнопок */
+    .subgroup-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    }
+
+    .zg {
+    display: flex;
+    flex-direction: column; /* Изменяем направление на колонку */
+    gap: 10px;
+    margin-bottom: 1rem;;
+    }
+
+    h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #2c3e50;
+    width: 100%; /* Занимает всю ширину */
+    }
+
+    .zg .button-group {
+    display: flex;
+    gap: 10px; /* Промежуток между кнопками */
+    }
+
+    .action-btn {
+    white-space: nowrap; /* Запрещаем перенос текста в кнопках */
+    }
+</style>
+
+@code {
+    private HashSet<int> selectedGroups = new HashSet<int>();
+    private HashSet<string> selectedStatuses = new HashSet<string>();
+    List<string> statuses = new List<string>{"Активный", "Заморожен", "Нет абонемента", "Закончился"};
+    List<Group> groups = new List<Group>();
+    List<Client> clients = new List<Client>();
+    List<Client> FullClients = new List<Client>();
+    List<Subscription> subscriptions = new List<Subscription>();
+    List<Instructor> instructors = new List<Instructor>();
+    List<Sub_Client> sub_clients = new List<Sub_Client>();
+    Client currentClient = new Client();
+    Anket currentAnket = new Anket();
+    Client newClient = new Client();
+    Anket newAnket = new Anket();
+    List<Shedule> listPos = new List<Shedule>();
+    Sub_Client viewSub = new Sub_Client();
+    bool showAddModal = false;
+    bool showEditModal = false;
+    bool showAddModalSub = false;
+    bool showFreezeModal = false;
+    bool showNoFreezeModal = false;
+    bool showExtendModal = false;
+    bool showDeleteSubCl = false;
+    bool showModalSub = false;
+    bool viewSubClientModal = false;
+    bool showChoiceClientPos = false;
+    bool showPos = false;
+    string ageText = string.Empty;
+    int group_id;
+    public int Id_Client;
+    int Id_Subscr;
+    int Id_Client_Freez;
+    int Id_Client_Not_Freez;
+    int Id_Client_Extend;
+    int Id_Client_Delete_Sub;
+    int Id_Client_View_Sub;
+    int Id_Client_Pos;
+    public string message = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        groups = await Group.GetListGroup(dbConnection);
+        clients = await Client.GetListClient(dbConnection);
+        subscriptions = await Subscription.GetList(dbConnection);
+        sub_clients = await Sub_Client.GetListAbonementCl(dbConnection);
+
+        FullClients = clients;
+    }
+
+    private string getGroup(int id)
+    {
+        if (id == 0)
+            return "Без группы";
+
+        foreach (var group in groups)
+        {
+            if (id == group.Id)
+            {
+                return group.name;
+            }
+        }
+        return "Без группы"; // Или можно оставить "Без группы"
+    }
+
+    private void ShowAddModal()
+    {
+        showAddModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showAddModal = false;
+        newClient = new Client();
+        showEditModal = false;
+        showAddModalSub = false;
+        showFreezeModal = false;
+        showNoFreezeModal = false;
+        showExtendModal = false;
+        showDeleteSubCl = false;
+        showModalSub = false;
+        viewSubClientModal = false;
+        showChoiceClientPos = false;
+        showPos = false;
+        showPos = false;
+        message = string.Empty;
+        viewSub = new Sub_Client();
+        listPos = new List<Shedule>();
+        Id_Client_Freez = 0;
+        Id_Client_Not_Freez = 0;
+        Id_Client_Extend = 0;
+        Id_Client_Delete_Sub = 0;
+        Id_Client_View_Sub = 0;
+        Id_Client_Pos = 0;
+    }
+
+    private async Task AddNewClient(Client client)
+    {
+        if (string.IsNullOrWhiteSpace(client.login) ||
+            string.IsNullOrWhiteSpace(client.email) ||
+            string.IsNullOrWhiteSpace(client.password) ||
+            string.IsNullOrWhiteSpace(client.FirstName) ||
+            string.IsNullOrWhiteSpace(client.LastName) ||
+            string.IsNullOrWhiteSpace(newAnket.lv_training) ||
+            string.IsNullOrWhiteSpace(newAnket.goal) ||
+            string.IsNullOrWhiteSpace(newAnket.protivipokazania) ||
+            string.IsNullOrWhiteSpace(ageText) ||
+            group_id <= 0) // Проверка, что group_id задан и валиден
+        {
+            message = "Все поля обязательны для заполнения";
+            return;
+        }
+        client.role = "Клиент";
+        var userExists = await User.GetUser(client.login, client.email, client.password, dbConnection);
+
+        if (userExists.Id == -1)
+        {
+            if (ControlEnter(ageText))
+            {
+                newAnket.age = Int32.Parse(ageText);
+                client.group_id = group_id;
+                await Client.AddClient(client, newAnket, dbConnection);
+                showAddModal = false;
+                message = string.Empty;
+                clients = await Client.GetListClient(dbConnection);
+                FullClients = clients;
+                newClient = new Client();
+                newAnket = new Anket();
+                ageText = string.Empty;
+                group_id = 0;
+            }
+            else
+            {
+                message = "Введите корректное значение в поле возраст";
+            }
+        }
+        else
+        {
+            message = "Пользователь с таким email или логином уже существует.";
+        }
+    }
+
+    private bool ControlEnter(string text)
+    {
+        if (int.TryParse(text, out int number))
+        {
+            return true;
+        }
+        return false;
+    }
+
+    private async Task ShowEditModal(Client client)
+    {
+        currentClient = new Client
+            {
+                client_Id = client.client_Id,
+                login = client.login,
+                email = client.email,
+                password = client.password,
+                FirstName = client.FirstName,
+                LastName = client.LastName,
+                group_id = client.group_id, // Важно сохранить group_id
+                role = client.role,
+                user_id = client.user_id   // Убедитесь, что это поле установлено
+            };
+
+        var originalAnket = await Anket.GetAnket(client.client_Id, dbConnection);
+        currentAnket = new Anket
+            {
+                age = originalAnket.age,
+                goal = originalAnket.goal,
+                lv_training = originalAnket.lv_training,
+                protivipokazania = originalAnket.protivipokazania,
+                Id = originalAnket.Id      // Убедитесь, что ID анкеты установлен
+            };
+
+        showEditModal = true;
+        StateHasChanged();
+    }
+
+    private async Task EditClient(Client client, Anket anket)
+    {
+        if (string.IsNullOrWhiteSpace(client.login) ||
+            string.IsNullOrWhiteSpace(client.email) ||
+            string.IsNullOrWhiteSpace(client.password) ||
+            string.IsNullOrWhiteSpace(client.FirstName) ||
+            string.IsNullOrWhiteSpace(client.LastName) ||
+            string.IsNullOrWhiteSpace(anket.lv_training) ||
+            string.IsNullOrWhiteSpace(anket.goal) ||
+            string.IsNullOrWhiteSpace(anket.protivipokazania) ||
+            anket.age <= 0)
+        {
+            message = "Все поля обязательны для заполнения";
+            StateHasChanged();
+            return;
+        }
+
+        try
+        {
+            client.role = "Клиент";
+            await Client.EditClient(client, anket, dbConnection);
+            clients = await Client.GetListClient(dbConnection);
+            FullClients = clients;
+            groups = await Group.GetListGroup(dbConnection);
+            subscriptions = await Subscription.GetList(dbConnection);
+            sub_clients = await Sub_Client.GetListAbonementCl(dbConnection);
+            showEditModal = false;
+            message = string.Empty;
+            StateHasChanged();
+
+
+        }
+        catch (Exception ex)
+        {
+            message = $"Ошибка при сохранении: {ex.Message}";
+            Console.WriteLine(message);
+            StateHasChanged();
+        }
+    }
+
+    private async Task RemoveClient(Client client)
+    {
+        bool confirm = await JSRuntime.InvokeAsync<bool>("confirm", 
+        "Вы уверены, что хотите удалить этого клиента?");
+
+        if (confirm)
+        {
+            try
+            {
+                await Client.RemoveClient(client, dbConnection);
+                clients = await Client.GetListClient(dbConnection);
+                FullClients = clients;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка при удалении: {ex.Message}");
+            }
+        }
+    }
+
+    private void AddSubscr()
+    {
+        NavigationManager.NavigateTo($"/pay/{Id_Client}");
+    }
+
+    private void ShowAddSubscr()
+    {
+        showAddModalSub = true;
+    }
+
+    private string getAbonementStatus(Client client)
+    {
+        foreach(var sc in sub_clients)
+        {
+            if (sc.sub_cl_id == client.client_abonemnt) return sc.status;
+        }
+        return "Нет абонемента";
+    }
+
+    private void ShowFreezModal()
+    {
+        showFreezeModal = true;
+    }
+
+    private async Task Freez(int id)
+    {
+        await Sub_Client.Freeze(id, dbConnection);
+        sub_clients = await Sub_Client.GetListAbonementCl(dbConnection);
+        showFreezeModal = false;
+    }
+
+    private void ShowNoFreezModal()
+    {
+        showNoFreezeModal = true;
+    }
+
+    private async Task NotFreez(int id)
+    {
+        await Sub_Client.NotFreeze(id, dbConnection);
+        sub_clients = await Sub_Client.GetListAbonementCl(dbConnection);
+        showNoFreezeModal = false;
+    }
+
+    private void ShowExtendModal()
+    {
+        showExtendModal = true;
+    }
+
+    private void Extend()
+    {
+        NavigationManager.NavigateTo($"/pay/extend/{Id_Client_Extend}");
+    }
+
+    private void ShowDeleteSubCl()
+    {
+        showDeleteSubCl = true;
+    }
+
+    private async Task DeleteSubCLient(int id_client)
+    {
+        Client delClSub = new Client();
+        foreach(var client in clients)
+        {
+            if(client.client_Id == id_client)
+            {
+                delClSub = client;
+            }
+        }
+        await Sub_Client.DeleteSubCLient(delClSub, dbConnection);
+        clients = await Client.GetListClient(dbConnection);
+        sub_clients = await Sub_Client.GetListAbonementCl(dbConnection);
+        FullClients = clients;
+        showDeleteSubCl = false;
+    }
+
+    private void ShowModalSub()
+    {
+        showModalSub = true;
+    }
+
+    private void ShowModalViewSubCL(int id)
+    {
+        foreach (var sub in sub_clients)
+        {
+            if(id == sub.sub_cl_id)
+            {
+                viewSub = sub;
+            }
+        }
+        viewSubClientModal = true;
+    }
+
+    private void ShowPosClientChoice()
+    {
+        showChoiceClientPos = true;
+    }
+
+    private async Task ShowPosClient(int Id_Client_Pos)
+    {
+        Client currentClientPos = new Client();
+        foreach(var cl in clients)
+        {
+            if(cl.client_Id == Id_Client_Pos)
+            {
+                currentClientPos = cl;
+            }
+        }
+
+        List<Shedule> shedules = await Shedule.GetPos(dbConnection, currentClientPos.group_id);
+        foreach(var sh in shedules)
+        {
+            if(Choice(sh.peoples, currentClientPos.client_Id))
+            {
+                listPos.Add(sh);
+            }
+        }
+        showPos = true;
+        showChoiceClientPos = false;
+    }
+
+    private bool Choice(int[]num, int id)
+    {
+        foreach(int n in num)
+        {
+            if(id == n)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void ToggleStatusFilter(string status)
+    {
+        if (selectedStatuses.Contains(status))
+            selectedStatuses.Remove(status);
+        else
+            selectedStatuses.Add(status);
+    }
+
+    private void ToggleGroupFilter(int groupId)
+    {
+        if (selectedGroups.Contains(groupId))
+            selectedGroups.Remove(groupId);
+        else
+            selectedGroups.Add(groupId);
+    }
+
+    private bool selectedNoGroup = false;
+
+    private void ToggleNoGroupFilter()
+    {
+        selectedNoGroup = !selectedNoGroup;
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        if (selectedGroups.Count == 0 && !selectedNoGroup && selectedStatuses.Count == 0)
+        {
+            clients = FullClients;
+            return;
+        }
+
+        var filtered = FullClients.AsEnumerable();
+
+        // Фильтр по группам (включая "без группы")
+        if (selectedGroups.Count > 0 || selectedNoGroup)
+        {
+            filtered = filtered.Where(c =>
+                (selectedNoGroup && c.group_id == 0) ||
+                (selectedGroups.Count > 0 && selectedGroups.Contains(c.group_id))
+            );
+        }
+
+        // Фильтр по статусам абонемента
+        if (selectedStatuses.Count > 0)
+        {
+            filtered = filtered.Where(c => selectedStatuses.Contains(getAbonementStatus(c)));
+        }
+
+        clients = filtered.ToList();
+    }
+
+    private void ResetFilters()
+    {
+        selectedGroups.Clear();
+        selectedStatuses.Clear();
+        selectedNoGroup = false; // Сбрасываем и этот флаг
+        clients = FullClients;
+    }
+}

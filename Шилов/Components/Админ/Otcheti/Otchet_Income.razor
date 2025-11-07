@@ -1,0 +1,512 @@
+﻿@page "/income"
+@using Шилов.Components.Classes;
+@using Npgsql
+@inject NpgsqlConnection dbConnection
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@using Radzen
+@using Radzen.Blazor
+<Sidebar />
+
+<link rel="stylesheet" href="_content/Radzen.Blazor/css/material.css">
+<script src="_content/Radzen.Blazor/Radzen.Blazor.js"></script>
+
+<div class="main-container">
+    <h2>Отчет по доходам</h2>
+
+    <!-- Выбор периода -->
+    <div class="period-selector">
+        <h3>Выберите период</h3>
+        <div class="date-inputs">
+            <div class="date-input">
+                <label for="startDate">Начальная дата:</label>
+                <input type="date" id="startDate" @bind="startDate" @bind:format="yyyy-MM-dd" />
+            </div>
+            <div class="date-input">
+                <label for="endDate">Конечная дата:</label>
+                <input type="date" id="endDate" @bind="endDate" @bind:format="yyyy-MM-dd" />
+            </div>
+            <button class="apply-btn" @onclick="LoadData">Применить</button>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="loading-container">
+            <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" />
+            <p>Загрузка данных...</p>
+        </div>
+    }
+    else if (!sampleData.Any())
+    {
+        <div class="no-data">
+            <p>Нет данных для отображения</p>
+        </div>
+    }
+    else
+    {
+        <RadzenCard Variant="Variant.Outlined" class="chart-card">
+            <!-- Круговая диаграмма -->
+            <RadzenChart Style="width: 100%; height: 400px;">
+                <RadzenDonutSeries Data=@sampleData
+                                   CategoryProperty="Category"
+                                   ValueProperty="Value"
+                                   Fills=@colors>
+                    <ChildContent>
+                        <RadzenSeriesDataLabels Visible="true" />
+                    </ChildContent>
+                    <TooltipTemplate Context="data">
+                        <div style="padding: 8px; font-size: 14px;">
+                            <strong>@data.Category</strong><br />
+                            Количество: @data.Value (@GetPercentage(data.Value)%)<br />
+                            Цена: @(GetSubscriptionPrice(data.Category)?.ToString("C"))
+                        </div>
+                    </TooltipTemplate>
+                </RadzenDonutSeries>
+                <RadzenLegend Position="LegendPosition.Right" />
+            </RadzenChart>
+
+            <!-- Таблица с процентным соотношением -->
+            <div class="table-container" style="margin-top: 20px;">
+                <table class="subscription-table">
+                    <thead>
+                        <tr>
+                            <th>Тип абонемента</th>
+                            <th>Количество</th>
+                            <th>Доля</th>
+                            <th>Общий доход</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in sampleData)
+                        {
+                            <tr>
+                                <td>@item.Category</td>
+                                <td>@item.Value</td>
+                                <td>@GetPercentage(item.Value)%</td>
+                                <td>@((item.Value * GetSubscriptionPrice(item.Category) ?? 0).ToString("C"))</td>
+                            </tr>
+                        }
+                        <tr class="total-row">
+                            <td>Итого</td>
+                            <td>@sampleData.Sum(x => x.Value)</td>
+                            <td>100%</td>
+                            <td>@sampleData.Sum(x => x.Value * (GetSubscriptionPrice(x.Category) ?? 0)).ToString("C")</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </RadzenCard>
+
+        <!-- Гистограмма (чистый HTML/CSS) -->
+        <div class="histogram-container">
+            <h3>Распределение продаж по датам</h3>
+            <div class="histogram">
+                @foreach (var item in histGram.OrderBy(x => x.Category))
+                {
+                    var heightPercentage = (item.Value / (double)histGram.Max(x => x.Value)) * 100;
+                    <div class="histogram-bar" title="@item.Category: @item.Value продаж"
+                         style="height: @(heightPercentage)%; background-color: @GetBarColor(item);">
+                        <span class="histogram-value">@item.Value</span>
+                    </div>
+                }
+            </div>
+            <div class="histogram-labels">
+                @foreach (var item in histGram.OrderBy(x => x.Category))
+                {
+                    <div class="histogram-label">@DateTime.Parse(item.Category).ToString("dd.MM")</div>
+                }
+            </div>
+        </div>
+
+        <!-- Таблица доходов за период -->
+        <div class="income-table-container">
+            <h3>Доходы за период с @startDate.ToString("dd.MM.yyyy") по @endDate.ToString("dd.MM.yyyy")</h3>
+            <table class="income-table">
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Тип операции</th>
+                        <th>Описание</th>
+                        <th>Сумма</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        var purchaseTotal = 0;
+                        var renewalTotal = 0;
+                    }
+                    @foreach (var income in filteredIncomes.OrderByDescending(x => x.date))
+                    {
+                        var isPurchase = income.Descript.Contains("покупка", StringComparison.OrdinalIgnoreCase);
+                        var isRenewal = income.Descript.Contains("продление", StringComparison.OrdinalIgnoreCase);
+
+                        <tr class="@(isPurchase ? "purchase-row" : isRenewal ? "renewal-row" : "")">
+                            <td>@income.date.ToString("dd.MM.yyyy")</td>
+                            <td>
+                                @if (isPurchase)
+                                {
+                                    <span>Покупка</span>
+                                    purchaseTotal += income.sum;
+                                }
+                                else if (isRenewal)
+                                {
+                                    <span>Продление</span>
+                                    renewalTotal += income.sum;
+                                }
+                                else
+                                {
+                                    <span>Другое</span>
+                                }
+                            </td>
+                            <td>@income.Descript</td>
+                            <td>@income.sum.ToString("C")</td>
+                        </tr>
+                    }
+                    <tr class="total-row">
+                        <td colspan="2">Итого покупки:</td>
+                        <td></td>
+                        <td>@purchaseTotal.ToString("C")</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td colspan="2">Итого продления:</td>
+                        <td></td>
+                        <td>@renewalTotal.ToString("C")</td>
+                    </tr>
+                    <tr class="grand-total-row">
+                        <td colspan="2">Общий итог:</td>
+                        <td></td>
+                        <td>@filteredIncomes.Sum(x => x.sum).ToString("C")</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<style>
+    /* Общие стили */
+    .main-container {
+        width: 100%;
+        margin-left: 210px;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .chart-card {
+        width: 100%;
+        max-width: 800px;
+        margin-top: 20px;
+    }
+
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 300px;
+        gap: 15px;
+    }
+
+    .no-data {
+        text-align: center;
+        padding: 40px;
+        color: var(--rz-text-secondary);
+    }
+
+    .table-container {
+        width: 100%;
+        overflow-x: auto;
+        margin-top: 20px;
+    }
+
+    .subscription-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 15px 0;
+        font-size: 14px;
+    }
+
+        .subscription-table th,
+        .subscription-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .subscription-table th {
+            background-color: #f5f5f5;
+            font-weight: 600;
+        }
+
+        .subscription-table tr:hover {
+            background-color: #f9f9f9;
+        }
+
+    .total-row {
+        font-weight: bold;
+        background-color: #f5f5f5;
+    }
+
+    .grand-total-row {
+        font-weight: bold;
+        background-color: #e0e0e0;
+    }
+
+    /* Стили для гистограммы */
+    .histogram-container {
+        width: 100%;
+        margin-top: 30px;
+        padding: 20px;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .histogram {
+        display: flex;
+        height: 200px;
+        align-items: flex-end;
+        gap: 8px;
+        padding: 20px 0 10px 0;
+        border-bottom: 1px solid #e0e0e0;
+        margin-bottom: 10px;
+        overflow-x: auto;
+    }
+
+    .histogram-bar {
+        flex: 1;
+        min-width: 30px;
+        background-color: #4285f4;
+        position: relative;
+        transition: height 0.3s ease;
+        border-radius: 4px 4px 0 0;
+        display: flex;
+        justify-content: center;
+    }
+
+        .histogram-bar:hover {
+            opacity: 0.8;
+        }
+
+    .histogram-value {
+        position: absolute;
+        top: -25px;
+        font-size: 12px;
+        font-weight: bold;
+        color: #333;
+    }
+
+    .histogram-labels {
+        display: flex;
+        gap: 8px;
+        justify-content: space-around;
+    }
+
+    .histogram-label {
+        flex: 1;
+        min-width: 30px;
+        text-align: center;
+        font-size: 12px;
+        color: #666;
+    }
+
+    /* Стили для выбора периода */
+    .period-selector {
+        width: 100%;
+        margin-bottom: 20px;
+        padding: 20px;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .date-inputs {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .date-input {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+        .date-input label {
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .date-input input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+    .apply-btn {
+        padding: 8px 16px;
+        background-color: #4285f4;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.3s;
+    }
+
+        .apply-btn:hover {
+            background-color: #3367d6;
+        }
+
+    /* Стили для таблицы доходов */
+    .income-table-container {
+        width: 100%;
+        margin-top: 20px;
+        padding: 20px;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .income-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+
+        .income-table th,
+        .income-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .income-table th {
+            background-color: #f5f5f5;
+            font-weight: 600;
+        }
+
+        .income-table tr:hover {
+            background-color: #f9f9f9;
+        }
+
+        .income-table td:last-child {
+            text-align: right;
+            font-weight: 500;
+        }
+
+    .purchase-row {
+        background-color: rgba(66, 135, 245, 0.1);
+    }
+
+    .renewal-row {
+        background-color: rgba(76, 175, 80, 0.1);
+    }
+
+    .purchase-row:hover {
+        background-color: rgba(66, 135, 245, 0.2);
+    }
+
+    .renewal-row:hover {
+        background-color: rgba(76, 175, 80, 0.2);
+    }
+</style>
+
+@code {
+    private bool isLoading = false;
+    List<Report> incomes = new();
+    List<Sub_Client> abonements = new();
+    List<ChartData> abonementCard = new();
+    List<Subscription> subscriptions = new();
+    List<ChartData> histGram = new();
+    List<Report> filteredIncomes = new();
+
+    DateTime startDate = DateTime.Today.AddMonths(-1);
+    DateTime endDate = DateTime.Today;
+
+    IEnumerable<ChartData> sampleData => abonementCard;
+
+    IEnumerable<string> colors = new List<string>
+    {
+        "#FF6384", "#36A2EB", "#FFCE56",
+        "#4BC0C0", "#9966FF", "#FF9F40"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            incomes = await Report.GetListIncomes(dbConnection);
+            abonements = await Sub_Client.GetListAbonementCl(dbConnection, startDate, endDate);
+            subscriptions = await Subscription.GetList(dbConnection);
+            abonementCard = chDt(subscriptions, abonements);
+            histGram = getHistoGramData(abonements);
+            filteredIncomes = incomes
+                .Where(x => x.date >= startDate && x.date <= endDate)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка загрузки данных: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private List<ChartData> chDt(List<Subscription> subscriptions, List<Sub_Client> abonements)
+    {
+        List<ChartData> abonementCard = new List<ChartData>();
+        foreach (var sub in subscriptions)
+        {
+            int value = abonements.Count(ab => ab.sub_id == sub.sub_id);
+            abonementCard.Add(new ChartData(sub.sub_name, value));
+        }
+        return abonementCard;
+    }
+
+    private double? GetSubscriptionPrice(string categoryName)
+    {
+        return subscriptions.FirstOrDefault(s => s.sub_name == categoryName)?.price;
+    }
+
+    private string GetPercentage(double value)
+    {
+        double total = sampleData.Sum(x => x.Value);
+        return total == 0 ? "0" : ((value / total) * 100).ToString("N1");
+    }
+
+    private List<ChartData> getHistoGramData(List<Sub_Client> abonements)
+    {
+        return abonements
+            .GroupBy(x => x.start_time.Date)
+            .Select(g => new ChartData(g.Key.ToString("yyyy-MM-dd"), g.Count()))
+            .ToList();
+    }
+
+    private string GetBarColor(ChartData item)
+    {
+        var maxValue = histGram.Max(x => x.Value);
+        var ratio = (double)item.Value / maxValue;
+        var red = (int)(255 * ratio);
+        var blue = (int)(255 * (1 - ratio));
+        return $"rgb({red}, 100, {blue})";
+    }
+}

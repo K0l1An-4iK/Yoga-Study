@@ -1,0 +1,127 @@
+﻿@page "/"
+@using Npgsql
+@using Шилов.Components.Classes
+@inject NpgsqlConnection dbConnection
+@inject NavigationManager NavigationManager
+
+<PageTitle>Home</PageTitle>
+
+<style>
+    .auth-container{
+    display: flex;
+    justify-content: center;
+    align-items:center;
+    height: 100vh;
+    background-color: #f4f4f4;
+    }
+    .auth-form{
+    background-color: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    }
+
+    .auth-form input[type="text"],
+    .auth-form input[type="password"] {
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    }
+
+    .auth-form input[type="button"] {
+    background-color: #007bff;
+    color: white;
+    padding: 0.5rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    }
+
+    .auth-form input[type="button"]:hover {
+    background-color: #0056b3;
+    }
+
+    .error {
+    color: red;
+    text-align: center;
+    }
+
+    .success {
+    color: green;
+    text-align: center;
+    }
+
+
+    h2 {
+    text-align: center;
+    margin-bottom: 1rem;
+    }
+
+    p {
+    text-align: center;
+    color: #b1b3b1;
+    }
+
+    p a {
+    color: #007bff;
+    text-decoration: none;
+    }
+
+    p a:hover {
+    text-decoration: underline;
+    }
+</style>
+<div class="auth-container">
+    <div class="auth-form">
+        <h2>Авторизация</h2>
+        <input @bind=login type="text" placeholder="Введите login" />
+        <input @bind=email type="text" placeholder="Введите email" />
+        <input @bind=password type="password" placeholder="Введите пароль" />
+        <input @onclick=Auth id="Button1" type="button" value="Войти" />
+        <p>Еще нет аккаунта? <a href="/register">Зарегистрироваться</a></p>
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div class="@messageClass">@message</div>
+        }
+
+    </div>
+</div>
+@code {
+    public User user = new User();
+    public string login = string.Empty;
+    public string email = string.Empty;
+    public string password = string.Empty;
+    public string message = string.Empty;
+    public string messageClass = string.Empty;
+    public async Task Auth()
+    {
+        message = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(login))
+        {
+            message = "Пожалуйста, заполните все поля.";
+            messageClass = "error";
+            return;
+        }
+        user = await User.GetUser(login, email, password, dbConnection);
+        bool auth = await User.Authorize(login, email, password, dbConnection);
+        if (!auth)
+        {
+            message = "Неверный email, login или пароль.";
+            messageClass = "error";
+        }
+        else if(auth && user.role.Equals("Админ"))
+        {
+            NavigationManager.NavigateTo("/adminManager");
+        }
+        else if (auth && user.role.Equals("Клиент"))
+        {
+            NavigationManager.NavigateTo($"/clientShedule/{user.Id}");
+        }
+    }
+}
+

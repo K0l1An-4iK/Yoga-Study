@@ -1,0 +1,135 @@
+﻿@page "/register"
+@using Npgsql
+@using Шилов.Components.Classes
+@using Microsoft.AspNetCore.Components
+@inject NpgsqlConnection dbConnection
+@inject NavigationManager NavigationManager
+
+<PageTitle>Регистрация</PageTitle>
+
+<style>
+    .register-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #f4f4f4;
+    }
+
+    .register-form {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    }
+
+    .register-form input[type="text"],
+    .register-form input[type="password"] {
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    }
+
+    .register-form input[type="button"] {
+    background-color: #007bff;
+    color: white;
+    padding: 0.5rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    }
+
+    .register-form input[type="button"]:hover {
+    background-color: #0056b3;
+    }
+
+    .error {
+    color: red;
+    text-align: center;
+    }
+
+    .success {
+    color: green;
+    text-align: center;
+    }
+
+
+    h2 {
+    text-align: center;
+    margin-bottom: 1rem;
+    }
+
+    p {
+    text-align: center;
+    color: #b1b3b1;
+    }
+
+    p a {
+    color: #007bff;
+    text-decoration: none;
+    }
+
+    p a:hover {
+    text-decoration: underline;
+    }
+</style>
+<div class="register-container">
+    <div class="register-form">
+        <h2>Регистрация</h2>
+        <input type="text" @bind="login" placeholder="Введите login" />
+        <input type="text" @bind="email" placeholder="Введите email" />
+        <input type="password" @bind="firstpassword" placeholder="Введите пароль" />
+        <input type="password" @bind="lastpassword" placeholder="Повторите пароль" />
+        <input @onclick="RegisterUser" id="Button1" type="button" value="Зарегистрироваться" />
+        <p>Уже зарегисрированы? <a href="/">Войти</a></p>
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div class="@messageClass">@message</div>
+        }
+    </div>
+</div>
+@code {
+    public User user = new User();
+    public string email = string.Empty;
+    public string login = string.Empty;
+    public string firstpassword = string.Empty;
+    public string lastpassword = string.Empty;
+    public string message = string.Empty;
+    public string messageClass = string.Empty;
+
+    public async Task RegisterUser()
+    {
+        message = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(firstpassword) || string.IsNullOrWhiteSpace(lastpassword))
+        {
+            message = "Пожалуйста, заполните все поля.";
+            messageClass = "error";
+            return;
+        }
+
+        if (firstpassword != lastpassword)
+        {
+            message = "Пароли не совпадают.";
+            messageClass = "error";
+            return;
+        }
+
+        bool reg = await User.RegisterUser(login, email, lastpassword, dbConnection);
+
+        if (reg)
+        {
+            await Client.AddNewClient(login, email, lastpassword, dbConnection);
+            NavigationManager.NavigateTo("/");
+        }
+        else
+        {
+            message = "Пользователь с таким email или логином уже существует.";
+            messageClass = "error";
+        }
+    }
+}

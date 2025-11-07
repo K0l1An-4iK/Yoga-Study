@@ -1,0 +1,458 @@
+﻿@page "/schedule"
+@using Шилов.Components.Classes;
+@using Npgsql
+@inject IJSRuntime JSRuntime
+@inject NpgsqlConnection dbConnection
+@inject NavigationManager NavigationManager
+
+<Sidebar />
+<link href="/SheduleStyle.css" rel="stylesheet" />
+<div class="main-content">
+    <div class="schedule-page">
+        <div class="schedule-header">
+            <h1>Расписание занятий</h1>
+            <div class="week-navigation">
+                <button @onclick="PreviousWeek" class="nav-button">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <span class="current-week">@currentWeekStart.ToString("dd.MM.yyyy") - @currentWeekEnd.ToString("dd.MM.yyyy")</span>
+                <button @onclick="NextWeek" class="nav-button">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="week-grid">
+            @foreach (var day in weekDays)
+            {
+                <div class="day-column @(IsCurrentDay(day) ? "today" : "")">
+                    <div class="day-header">
+                        <div class="day-name">@day</div>
+                        <div class="day-date">@GetDateForDay(day).ToString("dd.MM")</div>
+                    </div>
+
+                    <div class="time-slots">
+                        @for (var hour = 8; hour < 22; hour += 1) @* Шаг 1 час *@
+                        {
+                            foreach (var minutes in new[] { "00" }) @* Только целые часы *@
+                            {
+                                var slotTime = DateTime.Today.AddHours(hour).AddMinutes(int.Parse(minutes));
+                                var slotTimeMs = MillisecondsFromTime(slotTime);
+                                var dateForDay = GetDateForDay(day).Date;
+                                var classesInSlot = dayClasses
+                                .Where(c => c.Date.Date == dateForDay &&
+                                c.StartTime <= slotTimeMs &&
+                                c.EndTime > slotTimeMs)
+                                .GroupBy(c => new { c.GroupId, c.number_room })
+                                .Select(g => g.First())
+                                .ToList();
+
+                                <div class="time-slot @(classesInSlot.Any() ? "booked" : "available")"
+                                     @onclick="(() => HandleSlotClick(slotTime, GetDateForDay(day), classesInSlot))">
+
+                                    <div class="slot-time">@slotTime.ToString("HH:mm")</div>
+
+                                    @if (classesInSlot.Any())
+                                    {
+                                        <div class="classes-container">
+                                            @foreach (var classInSlot in classesInSlot.Take(3)) @* Ограничиваем 3 группами *@
+                                            {
+                                                <div class="class-info hall-@classInSlot.number_room">
+                                                    <span class="class-group">@GetGroupName(classInSlot.GroupId)</span>
+                                                    <span class="class-hall">@GetHallName(classInSlot.number_room)</span>
+                                                </div>
+                                            }
+                                            @if (classesInSlot.Count > 3)
+                                            {
+                                                <div class="more-classes">+@(classesInSlot.Count - 3) ещё</div>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Main Modal -->
+@if (showClassModal)
+{
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Добавление занятий</h3>
+                <button @onclick="CloseClassModal" class="close-button">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Дата:</label>
+                        <input type="date" @bind="currentDate" class="form-input" disabled />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Время начала:</label>
+                        <input type="" @bind="startTimeStr" class="form-input" disabled />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Время окончания:</label>
+                        <input type="" @bind="endTimeStr" class="form-input" disabled />
+                    </div>
+                </div>
+
+                <div class="added-classes">
+                    <h4>Добавленные группы:</h4>
+                    @if (classesToAdd.Any())
+                    {
+                        <div class="classes-list">
+                            @foreach (var classToAdd in classesToAdd)
+                            {
+                                <div class="added-class" style="border-left: 4px solid @GetHallColor(classToAdd.number_room)">
+                                    <span>@GetGroupName(classToAdd.GroupId) (@GetHallName(classToAdd.number_room))</span>
+                                    <button @onclick="(() => RemoveClass(classToAdd))" class="remove-class" title="Убрать из списка">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p>Нет добавленных групп</p>
+                    }
+                </div>
+
+                <button @onclick="OpenAddGroupModal" class="add-group-button">
+                    <i class="fas fa-plus"></i> Добавить группу
+                </button>
+            </div>
+
+            <div class="modal-footer">
+                <button @onclick="CloseClassModal" class="cancel-button">Отмена</button>
+                <button @onclick="SaveClasses" class="save-button">Сохранить</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Add Group Modal -->
+@if (showAddGroupModal)
+{
+    <div class="modal-overlay">
+        <div class="modal-content small-modal">
+            <div class="modal-header">
+                <h3>Добавить группу</h3>
+                <button @onclick="CloseAddGroupModal" class="close-button">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Группа:</label>
+                    <select @bind="newClass.GroupId" class="form-input">
+                        <option value="0">Выберите группу</option>
+                        @foreach (var group in availableGroups)
+                        {
+                            <option value="@group.Id">@group.name</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Зал:</label>
+                    <select @bind="newClass.number_room" class="form-input">
+                        <option value="0">Выберите зал</option>
+                        @foreach (var hall in halls)
+                        {
+                            <option value="@hall.Value">@hall.Text</option>
+                        }
+                    </select>
+                </div>
+
+                @if (addGroupError)
+                {
+                    <div class="alert alert-danger">
+                        @addGroupErrorMessage
+                    </div>
+                }
+            </div>
+
+            <div class="modal-footer">
+                <button @onclick="CloseAddGroupModal" class="cancel-button">Отмена</button>
+                <button @onclick="AddGroupToClasses" class="save-button">Добавить</button>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    private void RemoveClass(Shedule classToRemove)
+    {
+        // Просто удаляем из временного списка
+        classesToAdd.Remove(classToRemove);
+
+        // Обновляем список доступных групп
+        availableGroups = groups
+            .Where(g => !classesToAdd.Any(c => c.GroupId == g.Id))
+            .ToList();
+    }
+    // Добавляем метод для сокращенного отображения названия группы
+    private string GetShortGroupName(int id)
+    {
+        var group = groups.FirstOrDefault(g => g.Id == id);
+        if (group == null) return "?";
+
+        // Берем только первые 8 символов названия группы
+        return group.name.Length > 8 ? group.name.Substring(0, 8) + "..." : group.name;
+    }
+
+    private List<(int Value, string Text)> halls = new List<(int, string)>
+    {
+        (1, "Зал 1"),
+        (2, "Зал 2"),
+        (3, "Зал 3")
+    };
+
+    private Dictionary<int, string> hallColors = new Dictionary<int, string>
+    {
+        {1, "#4a6491"},
+        {2, "#914a64"},
+        {3, "#64914a"}
+    };
+
+    private List<string> weekDays = new List<string> { "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье" };
+    private DateTime currentWeekStart = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek + 1);
+    private DateTime currentWeekEnd => currentWeekStart.AddDays(6);
+
+    private List<Shedule> dayClasses = new List<Shedule>();
+    private List<Group> groups = new List<Group>();
+    private List<Group> availableGroups = new List<Group>();
+
+    private bool showClassModal = false;
+    private bool showAddGroupModal = false;
+    private bool addGroupError = false;
+    private string addGroupErrorMessage = "";
+
+    private DateTime currentDate;
+    private string startTimeStr;
+    private string endTimeStr;
+
+    private List<Shedule> classesToAdd = new List<Shedule>();
+    private Shedule newClass = new Shedule();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+        await LoadWeekClasses();
+    }
+
+    private async Task LoadData()
+    {
+        groups = await Group.GetListGroup(dbConnection);
+        availableGroups = new List<Group>(groups);
+    }
+
+    private async Task LoadWeekClasses()
+    {
+        dayClasses = await Shedule.GetWeekShedule(dbConnection, currentWeekStart);
+    }
+
+    private async Task SaveClasses()
+    {
+        // Получаем оригинальные занятия для этого временного слота
+        var originalClasses = await Shedule.GetSheduleForTimeSlot(
+            dbConnection,
+            currentDate,
+            MillisecondsFromTime(DateTime.Parse(startTimeStr)),
+            MillisecondsFromTime(DateTime.Parse(endTimeStr))
+        );
+
+        // Находим занятия, которые нужно удалить (есть в оригинале, но нет в текущем списке)
+        var classesToDelete = originalClasses
+            .Where(oc => !classesToAdd.Any(cta => cta.Id == oc.Id))
+            .ToList();
+
+        // Удаляем занятия
+        foreach (var classToDelete in classesToDelete)
+        {
+            await Shedule.DeleteShedule(dbConnection, classToDelete);
+        }
+
+        // Сохраняем/обновляем оставшиеся занятия
+        foreach (var classToAdd in classesToAdd)
+        {
+            classToAdd.EndTime = classToAdd.StartTime + (60 * 60 * 1000); // 1 час
+            await Shedule.SaveShedule(dbConnection, classToAdd);
+        }
+
+        showClassModal = false;
+        classesToAdd.Clear();
+        await LoadWeekClasses();
+    }
+
+    private void OpenAddGroupModal()
+    {
+        newClass = new Shedule
+            {
+                Date = currentDate,
+                StartTime = MillisecondsFromTime(DateTime.Parse(startTimeStr)),
+                EndTime = MillisecondsFromTime(DateTime.Parse(endTimeStr)),
+                GroupId = 0,
+                number_room = 0
+            };
+
+        // Фильтруем доступные группы (те, которые еще не добавлены)
+        availableGroups = groups
+            .Where(g => !classesToAdd.Any(c => c.GroupId == g.Id))
+            .ToList();
+
+        addGroupError = false;
+        showAddGroupModal = true;
+    }
+
+    private void CloseAddGroupModal()
+    {
+        showAddGroupModal = false;
+    }
+
+    private void AddGroupToClasses()
+    {
+        if (newClass.GroupId == 0)
+        {
+            addGroupError = true;
+            addGroupErrorMessage = "Выберите группу";
+            return;
+        }
+
+        if (newClass.number_room == 0)
+        {
+            addGroupError = true;
+            addGroupErrorMessage = "Выберите зал";
+            return;
+        }
+
+        // Проверяем, не добавлена ли уже эта группа
+        if (classesToAdd.Any(c => c.GroupId == newClass.GroupId))
+        {
+            addGroupError = true;
+            addGroupErrorMessage = "Эта группа уже добавлена";
+            return;
+        }
+
+        // Проверяем, не занят ли зал в это время
+        if (classesToAdd.Any(c => c.number_room == newClass.number_room))
+        {
+            addGroupError = true;
+            addGroupErrorMessage = "Этот зал уже занят в выбранное время";
+            return;
+        }
+
+        classesToAdd.Add(new Shedule
+            {
+                Date = newClass.Date,
+                StartTime = newClass.StartTime,
+                EndTime = newClass.EndTime,
+                GroupId = newClass.GroupId,
+                number_room = newClass.number_room
+            });
+
+        showAddGroupModal = false;
+        addGroupError = false;
+    }
+
+    private void RemoveClassToAdd(Shedule classToRemove)
+    {
+        classesToAdd.Remove(classToRemove);
+    }
+
+    private void HandleSlotClick(DateTime slotTime, DateTime day, List<Shedule> existingClasses = null)
+    {
+        currentDate = day.Date;
+        startTimeStr = slotTime.ToString("HH:mm");
+        endTimeStr = slotTime.AddMinutes(60).ToString("HH:mm");
+
+        if (existingClasses != null && existingClasses.Any())
+        {
+            // Если есть существующие занятия, загружаем их
+            classesToAdd = existingClasses
+                .Select(c => new Shedule
+                    {
+                        Id = c.Id,
+                        Date = c.Date,
+                        StartTime = c.StartTime,
+                        EndTime = c.EndTime,
+                        GroupId = c.GroupId,
+                        number_room = c.number_room
+                    })
+                .ToList();
+        }
+        else
+        {
+            // Если нет существующих занятий, создаем новый список
+            classesToAdd = new List<Shedule>();
+        }
+
+        showClassModal = true;
+    }
+
+    private void CloseClassModal()
+    {
+        showClassModal = false;
+        classesToAdd.Clear();
+    }
+
+    private string GetGroupName(int id)
+    {
+        var group = groups.FirstOrDefault(g => g.Id == id);
+        return group != null ? group.name : "Не назначена";
+    }
+
+    private string GetHallName(int hallNumber)
+    {
+        var hall = halls.FirstOrDefault(h => h.Value == hallNumber);
+        return hallNumber == 0 ? "Без зала" : hall.Text;
+    }
+
+    private string GetHallColor(int hallNumber)
+    {
+        return hallColors.TryGetValue(hallNumber, out var color) ? color : "#6c757d";
+    }
+
+    private int MillisecondsFromTime(DateTime time)
+    {
+        return (int)(time.TimeOfDay).TotalMilliseconds;
+    }
+
+    private DateTime GetDateForDay(string day)
+    {
+        int dayIndex = weekDays.IndexOf(day);
+        return currentWeekStart.AddDays(dayIndex);
+    }
+
+    private bool IsCurrentDay(string day)
+    {
+        return GetDateForDay(day).Date == DateTime.Today.Date;
+    }
+
+    private async Task PreviousWeek()
+    {
+        currentWeekStart = currentWeekStart.AddDays(-7);
+        await LoadWeekClasses();
+    }
+
+    private async Task NextWeek()
+    {
+        currentWeekStart = currentWeekStart.AddDays(7);
+        await LoadWeekClasses();
+    }
+}

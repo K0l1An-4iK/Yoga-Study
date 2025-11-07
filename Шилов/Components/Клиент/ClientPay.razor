@@ -1,0 +1,320 @@
+﻿@page "/pay/client/{Id_Client:int}"
+@using Шилов.Components.Classes;
+@using Npgsql
+@inject NpgsqlConnection dbConnection
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<SidebarForClient ClientId="@Id_Client" />
+<div class="main-content">
+    <h2>Оплата абонемента</h2>
+    <div class="payment-container">
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div class="error-message">@message</div>
+        }
+
+        <div class="payment-form">
+            <div class="form-section">
+                <label>Выберите абонемент из списка</label>
+                <select @bind="Id_Subscr" class="form-control">
+                    <option value="0" disabled selected>Выбрать абонемент</option>
+                    @foreach (var sub in subscriptions)
+                    {
+                        <option value="@sub.sub_id">Название: @sub.sub_name, Цена: @sub.price, Кол-во дней: @sub.duration_days</option>
+                    }
+                </select>
+                <button @onclick="getSub" class="btn-calculate">Рассчитать итоговую стоимость</button>
+            </div>
+
+            <div class="form-section">
+                <h3>Абонемент</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Название абонемента</label>
+                        <input type="text" value="@newSubCl.sub_name" disabled class="form-control" />
+                    </div>
+                    <div class="form-group">
+                        <label>Кол-во дней</label>
+                        <input type="text" value="@newSubCl.duration_days" disabled class="form-control" />
+                    </div>
+                    <div class="form-group">
+                        <label>Цена</label>
+                        <input type="text" value="@newSubCl.price" disabled class="form-control" />
+                    </div>
+                </div>
+            </div>
+            <div class="form-section card-details">
+                <h3>Данные карты</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Номер карты</label>
+                        <input type="text"
+                        pattern="[0-9]{13,19}"
+                        maxlength="19"
+                        placeholder="0000 0000 0000 0000"
+                        required
+                        class="form-control" />
+                    </div>
+                    <div class="form-group">
+                        <label>CVV</label>
+                        <input type="text"
+                        maxlength="3"
+                        placeholder="CVV"
+                        required
+                        class="form-control" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section total-section">
+                <h3>Итоговая сумма к оплате</h3>
+                <input type="text" value="@newSubCl.price" disabled class="form-control total-amount" />
+                <button @onclick="AddSubscr" class="btn-pay">Оплатить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .error-message {
+    color: #e74c3c;
+    margin: 1rem 0;
+    padding: 0.5rem;
+    background-color: #fdecea;
+    border-radius: 4px;
+    text-align: center;
+    }
+    .main-content {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    }
+
+    .payment-container {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    padding: 25px;
+    margin-top: 20px;
+    }
+
+    .payment-method-selector {
+    margin-bottom: 30px;
+    }
+
+    .form_radio_group {
+    display: inline-block;
+    overflow: hidden;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .form_radio_group-item {
+    display: inline-block;
+    }
+
+    .form_radio_group input[type=radio] {
+    display: none;
+    }
+
+    .form_radio_group label {
+    display: inline-block;
+    cursor: pointer;
+    padding: 12px 24px;
+    font-size: 16px;
+    font-weight: 500;
+    color: #555;
+    background: #fff;
+    transition: all 0.3s ease;
+    border: 1px solid #e0e0e0;
+    }
+
+    .form_radio_group .form_radio_group-item:first-child label {
+    border-radius: 8px 0 0 8px;
+    border-right: none;
+    }
+
+    .form_radio_group .form_radio_group-item:last-child label {
+    border-radius: 0 8px 8px 0;
+    }
+
+    .form_radio_group input[type=radio]:checked + label {
+    background: #4a6bff;
+    color: white;
+    border-color: #4a6bff;
+    }
+
+    .form_radio_group label:hover {
+    background: #f5f5f5;
+    }
+
+    .payment-form {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    }
+
+    .form-section {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    }
+
+    .form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    }
+
+    .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    }
+
+    .form-control {
+    width: 100%;
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border 0.3s;
+    }
+
+    .form-control:focus {
+    border-color: #4a6bff;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(74,107,255,0.2);
+    }
+
+    .form-control[disabled] {
+    background-color: #f9f9f9;
+    color: #666;
+    }
+
+    .btn-calculate, .btn-pay {
+    background: #4a6bff;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.3s;
+    align-self: flex-start;
+    }
+
+    .btn-calculate:hover, .btn-pay:hover {
+    background: #3a5bef;
+    }
+
+    .btn-pay {
+    margin-top: 15px;
+    width: 100%;
+    max-width: 300px;
+    }
+
+    .total-section {
+    border-top: 1px solid #eee;
+    padding-top: 20px;
+    }
+
+    .total-amount {
+    font-weight: bold;
+    font-size: 18px;
+    max-width: 300px;
+    }
+
+    .card-details {
+    border-top: 1px solid #eee;
+    padding-top: 20px;
+    }
+
+    h3 {
+    color: #333;
+    font-size: 20px;
+    margin: 0 0 15px 0;
+    }
+</style>
+
+@code {
+    [Parameter] public int Id_Client { get; set; }
+
+    string message = string.Empty;
+
+    private enum PaymentMethod { Cash, Card }
+
+    List<Subscription> subscriptions = new List<Subscription>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        subscriptions = await Subscription.GetList(dbConnection);
+    }
+
+    int Id_Subscr;
+
+    bool res = false;
+
+    Subscription newSubCl = new Subscription();
+
+    private void getSub()
+    {
+        if (Id_Subscr == 0)
+        {
+            message = "Выберите абонемент из списка";
+            return;
+        }
+
+        var selectedSub = subscriptions.FirstOrDefault(sub => Id_Subscr == sub.sub_id);
+        if (selectedSub != null)
+        {
+            newSubCl = selectedSub;
+            res = true;
+            message = string.Empty; // Очищаем сообщение об ошибке
+        }
+        else
+        {
+            message = "Выбранный абонемент не найден";
+            res = false;
+        }
+    }
+
+    private async Task AddSubscr()
+    {
+        Client client = new Client();
+        client = await Client.GetClient(Id_Client, dbConnection);
+        var selectedSub = subscriptions.FirstOrDefault(sub => sub.sub_id == Id_Subscr);
+        if (!res) message = "Нажмите кнопку рассчитать";
+        else
+        {
+            bool confirm = await JSRuntime.InvokeAsync<bool>("confirm","Вы уверены, что хотите оформить новый абонемент? Ваш страый абонемент будет удален!");
+            Subscription newSubClient = new Subscription();
+            DateTime startTime;
+            DateTime endTime;
+            if (confirm)
+            {
+                try
+                {
+                    await Sub_Client.DeleteSubCLient(client, dbConnection);
+                    foreach (var sub in subscriptions)
+                    {
+                        if (sub.sub_id == Id_Subscr)
+                        {
+                            newSubClient = sub;
+                        }
+                    }
+                    startTime = DateTime.Now;
+                    endTime = startTime.AddDays(newSubClient.duration_days);
+                    await Sub_Client.AddSub_CL(newSubClient, startTime, endTime, Id_Client, dbConnection);
+                    await Report.SaveIncome((int)newSubClient.price, "Покупка абонемента", startTime, dbConnection);
+                    NavigationManager.NavigateTo($"/abonementClient/{Id_Client}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Ошибка при оформлении: {ex.Message}");
+                }
+            }
+        }
+    }
+}

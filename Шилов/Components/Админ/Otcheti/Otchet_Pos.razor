@@ -1,0 +1,366 @@
+﻿@page "/otchet/pos"
+@using Шилов.Components.Classes;
+@using Npgsql
+@inject IJSRuntime JSRuntime
+@inject NpgsqlConnection dbConnection
+@inject NavigationManager NavigationManager
+@using Radzen
+@using Radzen.Blazor
+<Sidebar />
+
+<link rel="stylesheet" href="_content/Radzen.Blazor/css/material.css">
+<script src="_content/Radzen.Blazor/Radzen.Blazor.js"></script>
+
+<div class="main-container">
+    <h2>Отчет по посещаемости</h2>
+
+    <!-- Выбор периода -->
+    <div class="period-selector">
+        <h3>Выберите период</h3>
+        <div class="date-inputs">
+            <div class="date-input">
+                <label for="startDate">Начальная дата:</label>
+                <input type="date" id="startDate" @bind="startDate" @bind:format="yyyy-MM-dd" />
+            </div>
+            <div class="date-input">
+                <label for="endDate">Конечная дата:</label>
+                <input type="date" id="endDate" @bind="endDate" @bind:format="yyyy-MM-dd" />
+            </div>
+            <button class="apply-btn" @onclick="LoadData">Применить</button>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="loading-container">
+            <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" />
+            <p>Загрузка данных...</p>
+        </div>
+    }
+    else if (!clientGroups.Any() || !filteredClasses.Any())
+    {
+        <div class="no-data">
+            <p>Нет данных для отображения</p>
+        </div>
+    }
+    else
+    {
+        <!-- Круговые диаграммы по группам -->
+        <div class="group-charts">
+            @foreach (var group in clientGroups)
+            {
+                var groupClasses = filteredClasses.Where(c => c.GroupId == group.Id).ToList();
+                var totalVisits = groupClasses.Sum(c => c.peoples.Length);
+                var totalPossibleVisits = groupClasses.Count * group.client_id_list.Length;
+                var attendancePercentage = totalPossibleVisits > 0 ? (totalVisits * 100.0 / totalPossibleVisits) : 0;
+
+                <div class="group-chart-card">
+                    <h3>Группа: @group.name</h3>
+                    <RadzenChart Style="width: 100%; height: 300px;">
+                        <RadzenDonutSeries Data="@(new List<ChartData> {
+                            new ChartData("Посещения", totalVisits),
+                            new ChartData("Пропуски", totalPossibleVisits - totalVisits)
+                        })"
+                                           CategoryProperty="Category"
+                                           ValueProperty="Value"
+                                           Fills="@(new List<string> { "#4CAF50", "#F44336" })">
+                            <ChildContent>
+                                <RadzenSeriesDataLabels Visible="true" />
+                            </ChildContent>
+                            <TooltipTemplate Context="data">
+                                <div style="padding: 8px; font-size: 14px;">
+                                    <strong>@data.Category</strong><br />
+                                    Количество: @data.Value<br />
+                                    Процент: @(data.Category == "Посещения" ? attendancePercentage.ToString("N1") : (100 - attendancePercentage).ToString("N1"))%
+                                </div>
+                            </TooltipTemplate>
+                        </RadzenDonutSeries>
+                    </RadzenChart>
+                    <div class="attendance-info">
+                        <p>Посещаемость: @attendancePercentage.ToString("N1")%</p>
+                        <p>Всего занятий: @groupClasses.Count</p>
+                        <p>Среднее посещение: @(groupClasses.Count > 0 ? (totalVisits / groupClasses.Count).ToString("N1") : "0") из @group.client_id_list.Length</p>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Таблицы топовых и отстающих групп -->
+        <div class="top-bottom-groups">
+            <!-- Самые посещаемые группы -->
+            <div class="top-groups">
+                <h3>Самые посещаемые группы</h3>
+                <table class="group-table">
+                    <thead>
+                        <tr>
+                            <th>Группа</th>
+                            <th>Посещаемость</th>
+                            <th>Занятий</th>
+                            <th>Посещений</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var group in topGroups.Take(2))
+                        {
+                            var groupClasses = filteredClasses.Where(c => c.GroupId == group.Id).ToList();
+                            var totalVisits = groupClasses.Sum(c => c.peoples.Length);
+                            var totalPossibleVisits = groupClasses.Count * group.client_id_list.Length;
+                            var attendancePercentage = totalPossibleVisits > 0 ? (totalVisits * 100.0 / totalPossibleVisits) : 0;
+
+                            <tr>
+                                <td>@group.name</td>
+                                <td>@attendancePercentage.ToString("N1")%</td>
+                                <td>@groupClasses.Count</td>
+                                <td>@totalVisits</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Самые отстающие группы -->
+            <div class="bottom-groups">
+                <h3>Самые отстающие группы</h3>
+                <table class="group-table">
+                    <thead>
+                        <tr>
+                            <th>Группа</th>
+                            <th>Посещаемость</th>
+                            <th>Занятий</th>
+                            <th>Посещений</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var group in bottomGroups.Take(2))
+                        {
+                            var groupClasses = filteredClasses.Where(c => c.GroupId == group.Id).ToList();
+                            var totalVisits = groupClasses.Sum(c => c.peoples.Length);
+                            var totalPossibleVisits = groupClasses.Count * group.client_id_list.Length;
+                            var attendancePercentage = totalPossibleVisits > 0 ? (totalVisits * 100.0 / totalPossibleVisits) : 0;
+
+                            <tr>
+                                <td>@group.name</td>
+                                <td>@attendancePercentage.ToString("N1")%</td>
+                                <td>@groupClasses.Count</td>
+                                <td>@totalVisits</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    /* Общие стили */
+    .main-container {
+        width: 100%;
+        margin-left: 210px;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 300px;
+        gap: 15px;
+    }
+
+    .no-data {
+        text-align: center;
+        padding: 40px;
+        color: var(--rz-text-secondary);
+    }
+
+    /* Стили для выбора периода */
+    .period-selector {
+        width: 100%;
+        margin-bottom: 20px;
+        padding: 20px;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .date-inputs {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .date-input {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+        .date-input label {
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .date-input input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+    .apply-btn {
+        padding: 8px 16px;
+        background-color: #4285f4;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.3s;
+    }
+
+        .apply-btn:hover {
+            background-color: #3367d6;
+        }
+
+    /* Стили для диаграмм групп */
+    .group-charts {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+    }
+
+    .group-chart-card {
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .attendance-info {
+        margin-top: 15px;
+        text-align: center;
+        font-size: 14px;
+    }
+
+        .attendance-info p {
+            margin: 5px 0;
+        }
+
+    /* Стили для таблиц групп */
+    .top-bottom-groups {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-top: 30px;
+    }
+
+    .top-groups, .bottom-groups {
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 20px;
+    }
+
+    .group-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+
+        .group-table th, .group-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .group-table th {
+            background-color: #f5f5f5;
+            font-weight: 600;
+        }
+
+        .group-table tr:hover {
+            background-color: #f9f9f9;
+        }
+
+        .group-table td:last-child {
+            font-weight: 500;
+        }
+</style>
+
+@code {
+    private bool isLoading = false;
+    List<Шилов.Components.Classes.Group> clientGroups = new();
+    List<Shedule> dayClasses = new();
+    List<Shedule> filteredClasses = new();
+    List<Шилов.Components.Classes.Group> topGroups = new();
+    List<Шилов.Components.Classes.Group> bottomGroups = new();
+
+    DateTime startDate = DateTime.Today.AddMonths(-1);
+    DateTime endDate = DateTime.Today;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            clientGroups = await Шилов.Components.Classes.Group.GetListGroup(dbConnection);
+            dayClasses = await Shedule.GetSheduleForOtchet(dbConnection);
+            UpdateFilteredData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка загрузки данных: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void UpdateFilteredData()
+    {
+        filteredClasses = dayClasses
+            .Where(c => c.Date >= startDate && c.Date <= endDate)
+            .ToList();
+
+        // Сортируем группы по посещаемости
+        var groupsWithStats = clientGroups.Select(g =>
+        {
+            var groupClasses = filteredClasses.Where(c => c.GroupId == g.Id).ToList();
+            var totalVisits = groupClasses.Sum(c => c.peoples.Length);
+            var totalPossibleVisits = groupClasses.Count * g.client_id_list.Length;
+            var attendancePercentage = totalPossibleVisits > 0 ? (totalVisits * 100.0 / totalPossibleVisits) : 0;
+
+            return new
+            {
+                Group = g,
+                Attendance = attendancePercentage
+            };
+        }).OrderByDescending(x => x.Attendance).ToList();
+
+        topGroups = groupsWithStats.Select(x => x.Group).ToList();
+        bottomGroups = groupsWithStats.Select(x => x.Group).Reverse().ToList();
+    }
+}

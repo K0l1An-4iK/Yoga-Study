@@ -1,0 +1,183 @@
+/* Основной стиль таблицы */
+table {
+    width: 100%; /* Таблица занимает всю ширину контейнера */
+    border-collapse: collapse; /* Убирает двойные границы между ячейками */
+    text-align: center; /* Центрирует текст в ячейках */
+    margin: 20px 0; /* Отступ сверху и снизу */
+    font-family: "Segoe UI", Roboto, sans-serif; /* Современный читаемый шрифт */
+    font-size: 0.95rem; /* Немного меньше стандартного размера */
+    line-height: 1.5; /* Увеличенное межстрочное расстояние для читаемости */
+    color: #2c3e50; /* Глубокий темно-серый цвет текста */
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.05); /* Легкая тень вокруг таблицы */
+    border-radius: 8px; /* Скругленные углы */
+    overflow: hidden; /* Обрезает содержимое, выходящее за границы */
+}
+
+/* Заголовок таблицы */
+caption {
+    font-size: 1.2rem; /* Крупный размер текста */
+    font-weight: bold; /* Жирный текст */
+    margin-bottom: 10px; /* Отступ снизу от заголовка */
+    text-align: left; /* Заголовок выравнивается по левому краю */
+    color: #2c3e50; /* Тот же тёмно-серый цвет, что и текст */
+}
+
+/* Ячейки-заголовки таблицы (верхняя строка) */
+th {
+    background-color: #f5f5f5; /* Светло-серый фон */
+    color: #333; /* Тёмный текст */
+    padding: 10px 12px; /* Внутренние отступы по вертикали и горизонтали */
+    letter-spacing: 0.5px; /* Легкий интервал между буквами */
+    font-weight: 600; /* Полужирный текст */
+    text-transform: uppercase; /* Все буквы заглавные */
+    font-size: 0.9rem; /* Чуть меньше основного текста */
+    border: 1px solid #ddd; /* Светло-серая граница */
+}
+
+/* Обычные ячейки данных */
+td {
+    padding: 10px 13px; /* Внутренние отступы */
+    background-color: #fafafa; /* Очень светлый фон */
+    border: 1px solid #ddd; /* Светло-серая граница */
+    vertical-align: middle; /* Выравнивание по вертикали по центру */
+    color: #444; /* Тёмно-серый цвет текста */
+    font-weight: 400; /* Обычный вес текста */
+}
+
+/* Эффект при наведении на строку */
+tr:hover td {
+    background-color: #f0f0f0; /* Немного более тёмный фон */
+    transition: background-color 0.3s; /* Плавное изменение цвета при наведении */
+}
+
+/* Убираем левые и правые границы */
+table, th, td {
+    border-left: none; /* Убираем левую границу */
+    border-right: none; /* Убираем правую границу */
+}
+
+/* Стили для контейнера кнопок */
+.actions-cell {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 0;
+}
+
+
+/* Стиль кнопки редактирования */
+.editButton {
+    background-color: #91b3f2; /* Зеленый цвет */
+    color: white;
+}
+
+/* Стиль кнопки удаления */
+.deleteButton {
+    background-color: #f44336; /* Красный цвет */
+    color: white;
+}
+
+/* Эффекты при наведении */
+.action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    opacity: 0.9;
+}
+
+/* Иконки (опционально) */
+.action-btn {
+    padding: 0.6rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.add-button {
+    background-color: #4e73df;
+    color: white;
+}
+.add-button-anket {
+    background-color: #1cc88a;
+    color: white;
+}
+.freeze-button {
+    background-color: #36b9cc;
+    color: white;
+}
+.notfreeze-button {
+    background-color: #f6c23e;
+    color: #2c3e50;
+}
+/* Hover effects */
+.add-button:hover {
+    background-color: #2e59d9;
+    transform: translateY(-1px);
+}
+
+.add-button-anket:hover {
+    background-color: #17a673;
+    transform: translateY(-1px);
+}
+.freeze-button:hover {
+    background-color: #2c9faf;
+    transform: translateY(-1px);
+}
+.notfreeze-button:hover {
+    background-color: #e4b22e;
+    transform: translateY(-1px);
+}
+/* Focus states */
+.action-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
+}
+/* Icons */
+.action-btn i {
+    font-size: 0.9rem;
+}
+.extend-button {
+    background-color: #6c5ce7; /* приятный фиолетовый */
+    color: white;
+}
+
+    .extend-button:hover {
+        background-color: #5649c0;
+        transform: translateY(-1px);
+    }
+
+    .extend-button i {
+        color: #a29bfe; /* светлый фиолетовый для иконки */
+    }
+/* Стиль кнопки просмотра посещаемости */
+.view-pos {
+    background-color: #9b59b6; /* фиолетовый */
+    color: white;
+}
+
+    .view-pos:hover {
+        background-color: #8e44ad;
+        transform: translateY(-1px);
+    }
+
+    .view-pos i {
+        color: #d2b4de; /* светлый фиолетовый для иконки */
+    }
+
+/* Стиль кнопки просмотра абонемента */
+.viewSub {
+    background-color: #3498db; /* синий */
+    color: white;
+}
+
+    .viewSub:hover {
+        background-color: #2980b9;
+        transform: translateY(-1px);
+    }
+
+    .viewSub i {
+        color: #aed6f1; /* светлый синий для иконки */
+    }

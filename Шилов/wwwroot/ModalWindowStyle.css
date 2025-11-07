@@ -1,0 +1,108 @@
+﻿.modal-overlay {
+    position: fixed; /*фиксирует окно, оно остается на месте даже при прокрутке страницы*/
+    top: 0; /*прижимает к верхнему краю элементы внутри окна*/
+    right: 0; /*прижимает к правому краю элементы внутри окна*/
+    left: 0; /*прижимает к левому краю элементы внутри окна*/
+    bottom: 0; /*прижимает к нижнему краю элементы внутри окна */
+    background-color: rgba(0, 0, 0, 0.5); /* делает фон вокруг окна темным полупрозрачным 0.5-50% */
+    display: flex; /*Чтобы центрировать содержимое оверлея (модальное окно)*/
+    justify-content: center; /* Выравнивание по центру по оси X */
+    align-items: center; /* Выравнивание по оси Y по центру */
+    z-index: 1000; /*Порядок слоя делает его самым верхним*/
+}
+
+.modal-content {
+    background-color: white; /*цвет самого модального окна*/
+    padding: 1.5rem; /*Отступы от краев кона до его элементов*/
+    border-radius: 8px; /*скругление углов окна*/
+    width: 500px; /*ширина молаьного окна*/
+    max-width: 90%; /*не выходить за границы экрана а занимать только максимум 90%*/
+    max-height: 90%;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); /*параметры тени 0-смещение по X, 4 - смещение вниз, 20 - размытость, 0.2 - цвет тени 20%*/
+
+}
+.modal-body {
+    overflow-y: auto; /* вот тут прокрутка */
+    max-height: 70vh; /* высота области прокрутки */
+}
+    .modal-content h2 {
+        color: #2c3e50; /* цвет заголовка */
+        margin-bottom: 1.5rem; /* отступ снизу примерно 24px*/
+        text-align: center; /* выравнивание по центру */
+    }
+
+.form-group {
+    margin-bottom: 0.5rem; /* отступы между классамы снизу */
+}
+
+    .form-group label {
+        display: block; /* делает лйбл блочным то есть он занимает всю ширину клааса родителя (размещает элемент на новой строке, но не делает его шире)*/
+        margin-bottom: 0.5rem;
+        font-weight: 500; /* толшина текста (400 - это обычный)*/
+        color: #2c3e50;
+    }
+
+.form-input{
+    width: 100%; /* чтобы поле ввода знимало всю ширину контейнера */
+    padding: 0.55rem 0.8rem; /* отступы сверху и снизу */
+    border: 2px solid #e0e0e0; /* толщина границы, сплошная линия, цвет */
+    border-radius: 8px;
+    font-size: 1rem;
+}
+
+    .form-input:focus {
+        border-color: #4a6491;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(74, 100, 145, 0.2);
+    }
+.form-textarea {
+    width: 100%; /* чтобы поле ввода знимало всю ширину контейнера */
+    padding: 0.55rem 0.8rem; /* отступы сверху и снизу */
+    border: 2px solid #e0e0e0; /* толщина границы, сплошная линия, цвет */
+    border-radius: 8px;
+    font-size: 1rem;
+    min-height: 100px;
+    resize: none;
+}
+
+.modal-buttons{
+    display: flex; /* делает элементы внутри flex элементами */
+    justify-content: flex-end; /* прижимает элементы внутрик правому краю */
+    gap: 1rem; /* отступы между соседними элементами */
+    margin-top: 1rem;
+}
+
+.save-button {
+    padding: 0.6rem 1.5rem;
+    background-color: #4a6491;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.cancel-button {
+    padding: 0.6rem 1.5rem;
+    background-color: #e0e0e0;
+    color: #2c3e50;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.save-button:hover {
+    background-color: #3a5479;
+}
+
+.cancel-button:hover {
+    background-color: #d0d0d0;
+}
+
+.error-message {
+    color: #e74c3c;
+    margin: 1rem 0;
+    padding: 0.5rem;
+    background-color: #fdecea;
+    border-radius: 4px;
+    text-align: center;
+}

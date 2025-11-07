@@ -1,0 +1,360 @@
+.remove-class {
+    background: none;
+    border: none;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 0 0.5rem;
+    margin-left: 0.5rem;
+    transition: color 0.2s;
+}
+
+.remove-class:hover {
+    color: #dc3545;
+}
+
+.page-container {
+    display: flex;
+    min-height: 100vh;
+}
+
+.main-content {
+    flex: 1;
+    padding: 2rem;
+    margin-left: 250px;
+    background-color: #f8f9fa;
+    overflow-x: auto;
+}
+
+.schedule-page {
+    padding: 2rem;
+    background-color: #f8f9fa;
+    min-height: 100vh;
+}
+
+.schedule-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.week-navigation {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.nav-button {
+    background: #4a6491;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+    .nav-button:hover {
+        background: #3a5379;
+    }
+
+.current-week {
+    font-weight: 500;
+    font-size: 1.1rem;
+}
+
+.week-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 180px);
+    gap: 1rem;
+}
+
+.day-column {
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+    .day-column.today {
+        border: 2px solid #4a6491;
+    }
+
+.day-header {
+    padding: 1rem;
+    background: #4a6491;
+    color: white;
+    border-radius: 0.5rem 0.5rem 0 0;
+    text-align: center;
+}
+
+.day-name {
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.day-date {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+.time-slots {
+    padding: 0.5rem;
+}
+
+.time-slot {
+    border: 1px solid #e0e0e0;
+    border-radius: 0.25rem;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    height: 90px;
+    position: relative;
+}
+
+    .time-slot.available {
+        background-color: #f8f9fa;
+    }
+
+        .time-slot.available:hover {
+            background-color: #e9ecef;
+        }
+
+    .time-slot.booked {
+        background-color: #f8f9fa;
+        padding: 0;
+    }
+
+.slot-time {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.classes-container {
+    position: absolute;
+    top: 24px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 4px 4px 4px;
+    overflow-y: auto;
+}
+
+.hall-1 {
+    background-color: #4a6491;
+    color: white;
+}
+
+.hall-2 {
+    background-color: #914a64;
+    color: white;
+}
+
+.hall-3 {
+    background-color: #64914a;
+    color: white;
+}
+
+.more-classes {
+    font-size: 0.7rem;
+    text-align: center;
+    color: #6c757d;
+    padding: 2px;
+}
+
+/* Modal styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 0.5rem;
+    width: 600px;
+    max-width: 90%;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+.small-modal {
+    width: 400px;
+}
+
+.modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: #6c757d;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
+
+.form-input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+}
+
+.modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.save-button {
+    background: #4a6491;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+}
+
+.cancel-button {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+}
+
+.delete-button {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    margin-right: auto;
+}
+
+.alert-danger {
+    color: #721c24;
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+}
+
+.added-classes {
+    margin: 1rem 0;
+}
+
+.classes-list {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    padding: 0.5rem;
+}
+
+.added-class {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.remove-class {
+    background: none;
+    border: none;
+    color: #dc3545;
+    cursor: pointer;
+}
+
+.add-group-button {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 1rem;
+}
+
+    .add-group-button:hover {
+        background: #218838;
+    }
+
+.class-info {
+    flex: 1;
+    border-radius: 3px;
+    padding: 2px;
+    display: flex;
+    justify-content: center; /* Выравнивание по центру */
+    align-items: center; /* Выравнивание по вертикали */
+    overflow: hidden;
+    min-height: 20px;
+    font-size: 0.65rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.class-group {
+    font-weight: 500;
+    color: white;
+    margin-right: 3px; /* Отступ между названием группы и залом */
+}
+
+.class-hall {
+    color: white;
+    font-weight: 500;
+}
+

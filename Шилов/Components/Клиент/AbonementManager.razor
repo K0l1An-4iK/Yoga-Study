@@ -1,0 +1,239 @@
+﻿@page "/abonementClient/{Id:int}"
+@using Шилов.Components.Classes;
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@using Npgsql
+@inject NpgsqlConnection dbConnection
+@inject IJSRuntime JSRuntime
+<SidebarForClient ClientId="@Id" />
+
+<div class="client-container">
+    <div class="header">
+        <h2>Мой абонемент</h2>
+    </div>
+
+    <div class="subscription-card">
+        <div class="card-header">
+            <h3>Информация об абонементе</h3>
+        </div>
+
+        <div class="card-body">
+            <div class="form-group">
+                <label class="form-label">Название абонемента</label>
+                <input class="form-input" id="abonement-name" type="text" value=@abonementName readonly />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Дата оформления</label>
+                <input class="form-input" id="start-time" type="text" value=@sub_Client.start_time.ToString("dd.MM.yyyy") readonly />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Конец абонемента</label>
+                <input class="form-input" id="end-time" type="text" value=@sub_Client.end_time.ToString("dd.MM.yyyy") readonly />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Статус абонемента</label>
+                <input class="form-input status-@(sub_Client.status.ToLower())" id="status" type="text" value=@sub_Client.status readonly />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Осталось дней</label>
+                <input class="form-input" id="days-left" type="text" value=@days readonly />
+            </div>
+        </div>
+
+        <div class="card-footer">
+            <button @onclick="()=> Freez(sub_Client.sub_cl_id)" class="btn btn-secondary">
+                <i class="fas fa-snowflake"></i> Заморозка
+            </button>
+            <button @onclick="()=> NotFreez(sub_Client.sub_cl_id)" class="btn btn-secondary">
+                <i class="fas fa-fire"></i> Разморозка
+            </button>
+            <button @onclick="()=> AddNewAbonement()" class="btn btn-primary">
+                <i class="fas fa-plus-circle"></i> Новый абонемент
+            </button>
+            <button @onclick="()=> ExtendAbonement()" class="btn btn-primary">
+                <i class="fas fa-sync-alt"></i> Продлить
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .client-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+        .header h2 {
+            color: #2c3e50;
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+    .subscription-card {
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+        margin-bottom: 30px;
+    }
+
+    .card-header {
+        background: #3498db;
+        color: white;
+        padding: 15px 20px;
+    }
+
+        .card-header h3 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 500;
+        }
+
+    .card-body {
+        padding: 25px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: #7f8c8d;
+        font-size: 14px;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        background-color: #f8f9fa;
+        font-size: 15px;
+        transition: border-color 0.3s;
+    }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+    .status-active {
+        background-color: #e8f5e9;
+        color: #2e7d32;
+    }
+
+    .status-frozen {
+        background-color: #e3f2fd;
+        color: #1565c0;
+    }
+
+    .status-expired {
+        background-color: #ffebee;
+        color: #c62828;
+    }
+
+    .card-footer {
+        display: flex;
+        justify-content: space-between;
+        padding: 15px 20px;
+        background: #f5f7fa;
+        gap: 10px;
+        border-top: 1px solid #e0e0e0;
+    }
+
+    .btn {
+        padding: 10px 15px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary {
+        background-color: #3498db;
+        color: white;
+    }
+
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+
+    .btn-secondary {
+        background-color: #bdc3c7;
+        color: #2c3e50;
+    }
+
+        .btn-secondary:hover {
+            background-color: #95a5a6;
+        }
+
+
+</style>
+
+@code {
+    [Parameter] public int Id { get; set; }
+    Client client = new Client();
+    Sub_Client sub_Client = new Sub_Client();
+    int days = 0;
+    List<Subscription> subscriptions = new List<Subscription>();
+    string abonementName = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        client = await Client.GetClient(Id, dbConnection);
+        subscriptions = await Subscription.GetList(dbConnection);
+        if (client.client_abonemnt > 0)
+        {
+            sub_Client = await Sub_Client.GetAbonementCl(client.client_abonemnt, dbConnection);
+            days = GetDays();
+            abonementName = GetAbonementName();
+        }
+    }
+
+    private int GetDays()
+    {
+        return sub_Client.days > 0 ? sub_Client.days : 0;
+    }
+
+    private string GetAbonementName()
+    {
+        var subscription = subscriptions.FirstOrDefault(s => s.sub_id == sub_Client.sub_id);
+        return subscription?.sub_name ?? "Нет названия";
+    }
+
+    private async Task Freez(int id)
+    {
+        await Sub_Client.Freeze(id, dbConnection);
+        sub_Client = await Sub_Client.GetAbonementCl(client.client_abonemnt, dbConnection);
+    }
+
+    private async Task NotFreez(int id)
+    {
+        await Sub_Client.NotFreeze(id, dbConnection);
+        sub_Client = await Sub_Client.GetAbonementCl(client.client_abonemnt, dbConnection);
+    }
+
+    private void AddNewAbonement()
+    {
+        NavigationManager.NavigateTo($"/pay/client/{Id}");
+    }
+
+    private void ExtendAbonement()
+    {
+        NavigationManager.NavigateTo($"/pay/extend/client/{client.client_Id}");
+    }
+}

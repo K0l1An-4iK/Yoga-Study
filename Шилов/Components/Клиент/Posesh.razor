@@ -1,0 +1,257 @@
+﻿@page "/pos/{Id:int}"
+@using Шилов.Components.Classes;
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@using Npgsql
+@inject NpgsqlConnection dbConnection
+@inject IJSRuntime JSRuntime
+<SidebarForClient ClientId="@Id" />
+
+<div class="attendance-container">
+    <div class="attendance-card">
+        <div class="attendance-header">
+            <h2>Посещаемость клиента</h2>
+            <p class="client-name">@client.LastName @client.FirstName</p>
+        </div>
+
+        <div class="attendance-body">
+            @if (listPos.Any())
+            {
+                <div class="timeline">
+                    @foreach (var pos in listPos)
+                    {
+                        <div class="timeline-item">
+                            <div class="timeline-date">
+                                <span class="day">@pos.Date.ToString("dd")</span>
+                                <span class="month">@pos.Date.ToString("MMM")</span>
+                            </div>
+                            <div class="timeline-content">
+                                <div class="session-info">
+                                    <div class="info-row">
+                                        <span class="info-icon"><i class="far fa-clock"></i></span>
+                                        <span class="info-text">@(pos.StartTime / 1000 / 60 / 60):00 - @(pos.EndTime / 1000 / 60 / 60):00</span>
+                                    </div>
+                                    <div class="info-row">
+                                        <span class="info-icon"><i class="fas fa-users"></i></span>
+                                        <span class="info-text">@group.name</span>
+                                    </div>
+                                    <div class="info-row">
+                                        <span class="info-icon"><i class="fas fa-door-open"></i></span>
+                                        <span class="info-text">Зал №@pos.number_room</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">
+                    <i class="far fa-calendar-check empty-icon"></i>
+                    <p>Нет данных о посещениях</p>
+                    <button @onclick="showPos" class="refresh-btn">
+                        <i class="fas fa-sync-alt"></i> Загрузить посещения
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .attendance-container {
+        width: 100%;
+        margin: 20px auto;
+        margin-left: 260px;
+        padding: 20px;
+    }
+
+    .attendance-card {
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+    }
+
+    .attendance-header {
+        padding: 20px;
+        background: linear-gradient(135deg, #3498db, #2c3e50);
+        color: white;
+        text-align: center;
+    }
+
+        .attendance-header h2 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+    .client-name {
+        margin: 5px 0 0;
+        font-size: 16px;
+        opacity: 0.9;
+    }
+
+    .attendance-body {
+        padding: 20px;
+    }
+
+    /* Timeline styles */
+    .timeline {
+        position: relative;
+        padding-left: 50px;
+    }
+
+        .timeline:before {
+            content: '';
+            position: absolute;
+            left: 20px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e0e0e0;
+        }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 25px;
+    }
+
+    .timeline-date {
+        position: absolute;
+        left: -50px;
+        width: 40px;
+        text-align: center;
+        background: #3498db;
+        color: white;
+        border-radius: 6px;
+        padding: 5px 0;
+    }
+
+        .timeline-date .day {
+            display: block;
+            font-size: 18px;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .timeline-date .month {
+            display: block;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+    .timeline-content {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+        .timeline-content:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+    .session-info {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .info-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .info-icon {
+        color: #3498db;
+        width: 20px;
+        text-align: center;
+    }
+
+    .info-text {
+        font-size: 14px;
+        color: #555;
+    }
+
+    /* Empty state styles */
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #7f8c8d;
+    }
+
+    .empty-icon {
+        font-size: 50px;
+        margin-bottom: 15px;
+        color: #bdc3c7;
+    }
+
+    .empty-state p {
+        font-size: 16px;
+        margin-bottom: 20px;
+    }
+
+    .refresh-btn {
+        background: #3498db;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: background 0.3s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+        .refresh-btn:hover {
+            background: #2980b9;
+        }
+
+</style>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    Client client = new Client();
+
+    Group group = new Group();
+
+    List<Shedule> listPos = new List<Shedule>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        client = await Client.GetClient(Id, dbConnection);
+        group = await Group.GetGroup(client.group_id, dbConnection);
+    }
+
+    private async Task showPos()
+    {
+        List<Shedule> shedules = await Shedule.GetPos(dbConnection, client.group_id);
+        foreach (var sh in shedules)
+        {
+            if (Choice(sh.peoples, client.client_Id))
+            {
+                listPos.Add(sh);
+            }
+        }
+    }
+
+    private bool Choice(int[] num, int id)
+    {
+        foreach (int n in num)
+        {
+            if (id == n)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+}

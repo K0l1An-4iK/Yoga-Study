@@ -1,0 +1,381 @@
+﻿@page "/instructorManager"
+@using Шилов.Components.Classes;
+@using Npgsql
+@inject IJSRuntime JSRuntime
+@inject NpgsqlConnection dbConnection
+@inject NavigationManager NavigationManager
+<Sidebar />
+<link href="/ModalWindowStyle.css" rel="stylesheet" />
+<link href="/TableStyle.css" rel="stylesheet" />
+<div class="main-content">
+    <div class="zg">
+        <h2>Список инструкторов</h2>
+        <button @onclick=ShowAddModal class="action-btn add-button">
+            <i class="fa-solid fa-user-plus"></i> Регистрация нового инструктора
+        </button>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Фамилия</th>
+                <th>Имя</th>
+                <th>Стаж</th>
+                <th>Группа</th>
+                <th>Логин</th>
+                <th>Email</th>
+                <th>Пароль</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var instructor in instructors)
+            {
+                <tr>
+                    <td>@instructor.instructor_id</td>
+                    <td>@instructor.LastName</td>
+                    <td>@instructor.FirstName</td>
+                    <td>@instructor.experience</td>
+                    <td>@getGroup(@instructor.instructor_id).name</td>
+                    <td>@instructor.login</td>
+                    <td>@instructor.email</td>
+                    <td>@instructor.password</td>
+                    <td>
+                        <button @onclick="() => ShowEditModal(instructor)" class="action-btn editButton">
+                            <i class="fas fa-edit"></i> Редактировать
+                        </button>
+                        <button @onclick="() => RemoveInstructor(instructor.instructor_id)" class="action-btn deleteButton">
+                            <i class="fas fa-trash"></i> Удалить
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+<!-- Модальное окно редактирования -->
+@if (showModal)
+{
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <h2>Редактирование инструктора</h2>
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="error-message">@message</div>
+            }
+            <div class="form-group">
+                <label>Имя</label>
+                <input @bind="currentInstructor.FirstName" class="form-input" />
+            </div>
+
+            <div class="form-group">
+                <label>Фамилия</label>
+                <input @bind="currentInstructor.LastName" class="form-input" />
+            </div>
+
+            <div class="form-group">
+                <label>Логин</label>
+                <input @bind="currentInstructor.login" class="form-input" />
+            </div>
+
+            <div class="form-group">
+                <label>Email</label>
+                <input @bind="currentInstructor.email" type="email" class="form-input" />
+            </div>
+
+            <div class="form-group">
+                <label>Пароль</label>
+                <input @bind="currentInstructor.password" type="text" class="form-input" />
+            </div>
+
+            <div class="form-group">
+                <label>Стаж (лет)</label>
+                <input @bind="currentInstructor.experience" type="number" class="form-input" />
+            </div>
+
+            <div class="form-group">
+                <label>Описание</label>
+                <textarea @bind="currentInstructor.description"
+                class="form-textarea"
+                rows="4"></textarea>
+            </div>
+            <div class="modal-buttons">
+                <button @onclick="SaveInstructor" class="save-button">Сохранить</button>
+                <button @onclick="CloseModal" class="cancel-button">Отмена</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Модальное окно добавления -->
+@if (showAddModal)
+{
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <h2>Добавление инструктора</h2>
+
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="error-message">@message</div>
+            }
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Логин</label>
+                    <input @bind="newUser.login" class="form-input" placeholder="Введите логин" />
+                </div>
+
+                <div class="form-group">
+                    <label>Email</label>
+                    <input @bind="newUser.email" type="email" class="form-input" placeholder="Введите email" />
+                </div>
+
+                <div class="form-group">
+                    <label>Пароль</label>
+                    <input @bind="newUser.password" type="password" class="form-input" placeholder="Введите пароль" />
+                </div>
+
+                <div class="form-group">
+                    <label>Имя</label>
+                    <input @bind="newUser.FirstName" class="form-input" placeholder="Введите имя" />
+                </div>
+
+                <div class="form-group">
+                    <label>Фамилия</label>
+                    <input @bind="newUser.LastName" class="form-input" placeholder="Введите фамилию" />
+                </div>
+
+                <div class="form-group">
+                    <label>Стаж (лет)</label>
+                    <input @bind="experienceText" class="form-input" placeholder="Введите стаж в годах" />
+                </div>
+
+                <div class="form-group">
+                    <label>Описание</label>
+                    <textarea @bind="description"
+                    class="form-textarea"
+                    rows="4"
+                    placeholder="Введите описание"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Группа</label>
+                    <select @bind="group_id" class="form-input">
+                        <option value="">Выберите группу</option>
+                        @foreach (var group in groups)
+                        {
+                            <option value="@group.Id">ID: @group.Id Name: @group.name</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button @onclick="() => AddInstructor(newUser)" class="save-button">Добавить</button>
+                <button @onclick="CloseModal" class="cancel-button">Отмена</button>
+            </div>
+        </div>
+    </div>
+}
+
+<style >
+    .zg {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    }
+
+    .zg h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #2c3e50;
+    }
+</style>
+@code {
+    User newUser = new User();
+    List<Instructor> instructors = new List<Instructor>();
+    Instructor currentInstructor = new Instructor();
+    List<Group> groups = new List<Group>();
+    List<Group> fullgroups = new List<Group>();
+    bool showModal = false;
+    bool showAddModal = false;
+    public string message = string.Empty;
+    protected override async Task OnInitializedAsync()
+    {
+        instructors = await Instructor.GetListInstructor(dbConnection);
+        groups = await LoadGroup();
+        fullgroups = await Group.GetListGroup(dbConnection);
+    }
+
+    private void ShowEditModal(Instructor instructor)
+    {
+        currentInstructor = new Instructor
+            {
+                instructor_id = instructor.instructor_id,
+                FirstName = instructor.FirstName,
+                LastName = instructor.LastName,
+                email = instructor.email,
+                login = instructor.login,
+                experience = instructor.experience,
+                description = instructor.description,
+                password = instructor.password,
+            };
+        showModal = true;
+    }
+
+    private void ShowAddModal()
+    {
+        showAddModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        showAddModal = false;
+        newUser = new User();
+        experienceText = string.Empty;
+        message = string.Empty;
+        description = string.Empty;
+        group_id = 0;
+    }
+
+    private async Task SaveInstructor()
+    {
+        if (string.IsNullOrWhiteSpace(currentInstructor.login) ||
+    string.IsNullOrWhiteSpace(currentInstructor.email) ||
+    string.IsNullOrWhiteSpace(currentInstructor.password) ||
+    string.IsNullOrWhiteSpace(currentInstructor.FirstName) ||
+    string.IsNullOrWhiteSpace(currentInstructor.LastName) ||
+    string.IsNullOrWhiteSpace(currentInstructor.description) ||
+    currentInstructor.experience <= 0) // Проверка, что group_id задан и валиден
+        {
+            message = "Все поля обязательны для заполнения";
+            return;
+        }
+        try
+        {
+            currentInstructor.role = "Инструктор";
+            await Instructor.EditInstructor(currentInstructor, dbConnection);
+            instructors = await Instructor.GetListInstructor(dbConnection);
+            showModal = false;
+            message = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка при сохранении: {ex.Message}");
+        }
+    }
+
+    private async Task RemoveInstructor(int id)
+    {
+        string msg = "Вы уверены, что хотите удалить этого инструктора?";
+        bool confirmDelete = await JSRuntime.InvokeAsync<bool>("confirm", new object[] { msg });
+        int id_group = 0;
+        List<Group> dellistgroups = await Group.GetListGroup(dbConnection);
+        foreach (var group in dellistgroups)
+        {
+            if(group.instructor_id == id)
+            {
+                id_group = group.Id;
+            }
+        }
+
+        if (confirmDelete)
+        {
+            await Instructor.RemoveInstructor(id, id_group, dbConnection);
+            instructors = await Instructor.GetListInstructor(dbConnection);
+        }
+    }
+
+    public string experienceText = string.Empty;
+
+    public string description = string.Empty;
+
+    public int group_id;
+
+    private async Task AddInstructor(User newuser)
+    {
+        if (string.IsNullOrWhiteSpace(newuser.login) ||
+            string.IsNullOrWhiteSpace(newuser.email) ||
+            string.IsNullOrWhiteSpace(newuser.password) ||
+            string.IsNullOrWhiteSpace(newuser.FirstName) ||
+            string.IsNullOrWhiteSpace(newuser.LastName) ||
+            string.IsNullOrWhiteSpace(experienceText) ||
+            string.IsNullOrWhiteSpace(description)) // Проверка, что group_id задан и валиден
+        {
+            message = "Все поля кроме группы обязательны для заполнения";
+            return;
+        }
+        newuser.role = "Инструктор";
+        var userExists = await User.GetUser(newuser.login, newuser.email, newuser.password, dbConnection);
+
+        if (userExists.Id == -1)
+        {
+            if (ControlEnter(experienceText))
+            {
+                int experience = Int32.Parse(experienceText);
+                await User.AddUser(newuser, dbConnection);
+                User user = await User.GetUser(newuser.login, newuser.email, newuser.password, dbConnection);
+                Instructor instructor = new Instructor(user, experience, description);
+                if (group_id >= 0)
+                {
+                    await Instructor.RegisterInstructor(instructor, group_id, dbConnection);
+                }
+                else
+                {
+                    await Instructor.RegisterInstructor(instructor, dbConnection);
+                }
+                showAddModal = false;
+                instructors = await Instructor.GetListInstructor(dbConnection);
+                groups = await LoadGroup();
+                newUser = new User();
+                message = string.Empty;
+                experienceText = string.Empty;
+                description = string.Empty;
+                group_id = 0;
+            }
+            else
+            {
+                message = "Введите корректное значение в поле стаж";
+            }
+        }
+        else
+        {
+            message = "Пользователь с таким email или логином уже существует.";
+        }
+    }
+
+    private bool ControlEnter(string text)
+    {
+        if (int.TryParse(text, out int number))
+        {
+            return true;
+        }
+        return false;
+    }
+
+    private async Task<List<Group>> LoadGroup()
+    {
+        List<Group> groups = new List<Group>();
+        List<Group> newgroups = await Group.GetListGroup(dbConnection);
+        foreach (var group in newgroups)
+        {
+            if (group.instructor_id <= 0)
+            {
+                groups.Add(group);
+            }
+        }
+        return groups;
+    }
+
+    private Group getGroup(int id)
+    {
+        foreach (var group in fullgroups)
+        {
+            if (id == group.instructor_id)
+            {
+                return group;
+            }
+        }
+        return new Group();
+    }
+}

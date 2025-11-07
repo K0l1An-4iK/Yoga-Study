@@ -1,0 +1,295 @@
+﻿@page "/clientShedule/{Id:int}"
+@using Шилов.Components.Classes;
+@using Npgsql
+@inject IJSRuntime JSRuntime
+@inject NpgsqlConnection dbConnection
+@inject NavigationManager NavigationManager
+
+<SidebarForClient ClientId="@Id"/>
+<link href="/SheduleStyle.css" rel="stylesheet" />
+<link href="/ModalWindowStyle.css" rel="stylesheet" />
+<div class="main-content">
+    <div class="schedule-page">
+        <div class="schedule-header">
+            <h2>@Zagolovok</h2>
+            <div class="week-navigation">
+                <button @onclick="PreviousWeek" class="nav-button">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <span class="current-week">@currentWeekStart.ToString("dd.MM.yyyy") - @currentWeekEnd.ToString("dd.MM.yyyy")</span>
+                <button @onclick="NextWeek" class="nav-button">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="week-grid">
+            @foreach (var day in weekDays)
+            {
+                <div class="day-column @(IsCurrentDay(day) ? "today" : "")">
+                    <div class="day-header">
+                        <div class="day-name">@day</div>
+                        <div class="day-date">@GetDateForDay(day).ToString("dd.MM")</div>
+                    </div>
+
+                    <div class="time-slots">
+                        @for (var hour = 8; hour < 22; hour += 1)
+                        {
+                            foreach (var minutes in new[] { "00" })
+                            {
+                                var slotTime = DateTime.Today.AddHours(hour).AddMinutes(int.Parse(minutes));
+                                var slotTimeMs = MillisecondsFromTime(slotTime);
+                                var dateForDay = GetDateForDay(day).Date;
+                                var classesInSlot = dayClasses
+                                .Where(c => c.Date.Date == dateForDay &&
+                                c.StartTime <= slotTimeMs &&
+                                c.EndTime > slotTimeMs &&
+                                c.GroupId == group_client.Id)
+                                .ToList();
+
+                                <div class="time-slot @(classesInSlot.Any() ? "booked" : "")">
+                                    <div class="slot-time">@slotTime.ToString("HH:mm")</div>
+
+                                    @if (classesInSlot.Any())
+                                    {
+                                        <div class="classes-container">
+                                            @foreach (var classInSlot in classesInSlot)
+                                            {
+                                                <div class="class-info hall-@classInSlot.number_room">
+                                                    <span class="class-hall">@GetHallName(classInSlot.number_room)</span>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@if (showAddModal)
+{
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <h2>Заполнение анкеты клиента</h2>
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="error-message">@message</div>
+            }
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Имя</label>
+                    <input @bind="newClient.FirstName" class="form-input" placeholder="Введите имя" />
+                </div>
+
+                <div class="form-group">
+                    <label>Фамилия</label>
+                    <input @bind="newClient.LastName" class="form-input" placeholder="Введите фамилию" />
+                </div>
+
+
+                <div class="form-group">
+                    <label>Возраст</label>
+                    <input @bind=ageText class="form-input" placeholder="Введите возраст" />
+                </div>
+
+                <div class="form-group">
+                    <label>Уровень подготовки</label>
+                    <textarea @bind=newAnket.lv_training
+                    id="lvtraining"
+                    class="form-textarea"
+                    rows="4"
+                    placeholder="Введите Уровень подготовки"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Цель</label>
+                    <input @bind=newAnket.goal class="form-input" placeholder="Введите цель занятий" />
+                </div>
+
+                <div class="form-group">
+                    <label>Противопоказания</label>
+                    <input @bind=newAnket.protivipokazania class="form-input" placeholder="Введите противопоказания (если есть)" />
+                </div>
+                <div class="form-group">
+                    <label>После заполнения анкеты вас добавят в группу</label>
+                </div>
+                <div class="modal-buttons">
+                    <button @onclick="() => AddNewClient(newClient)" class="save-button">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Client thisClient = new Client();
+
+    private Group group_client = new Group();
+
+    Client newClient = new Client();
+
+    string Zagolovok = string.Empty;
+
+    Sub_Client sub_Client = new Sub_Client();
+
+    Anket newAnket = new Anket();
+
+    string ageText = string.Empty;
+
+    string message = string.Empty;
+
+    bool showAddModal = false;
+
+    User user = new User();
+
+    private List<(int Value, string Text)> halls = new List<(int, string)>
+    {
+        (1, "Зал 1"),
+        (2, "Зал 2"),
+        (3, "Зал 3")
+    };
+
+    private Dictionary<int, string> hallColors = new Dictionary<int, string>
+    {
+        {1, "#4a6491"},
+        {2, "#914a64"},
+        {3, "#64914a"}
+    };
+
+    private List<string> weekDays = new List<string> { "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье" };
+
+    private DateTime currentWeekStart = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek + 1);
+
+    private DateTime currentWeekEnd => currentWeekStart.AddDays(6);
+
+    private List<Shedule> dayClasses = new List<Shedule>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        thisClient = await Client.GetClient(Id, dbConnection);
+        if (thisClient.FirstName.Equals(string.Empty) && thisClient.LastName.Equals(string.Empty))
+        {
+            showAddModal = true;
+            user = await User.GetUser(Id, dbConnection);
+            newClient.client_Id = user.Id;
+            newClient.user_id = user.Id;
+            newClient.anket_id = user.Id;
+            newAnket.Id = user.Id;
+        }
+        if (thisClient != null && thisClient.group_id > 0)
+        {
+            sub_Client = await Sub_Client.GetAbonementCl(thisClient.client_abonemnt, dbConnection);
+            if (thisClient.client_abonemnt > 0 && sub_Client.status.Equals("Активный"))
+            {
+                group_client = await Group.GetGroup(thisClient.group_id, dbConnection);
+                Zagolovok = $"Расписание для группы {group_client.name}";
+                await LoadWeekClasses();
+            }
+            else if (thisClient.client_abonemnt <= 0)
+            {
+                Zagolovok = "Оформите абонемент чтобы просматривать расписание";
+            }
+            else if (!sub_Client.status.Equals("Активный"))
+            {
+                Zagolovok = "Ваш абонемент неактивен";
+            }
+        }
+        else if (thisClient != null && thisClient.group_id <= 0)
+        {
+            Zagolovok = "Вас еще не добавили в группу!";
+        }
+    }
+
+    private async Task LoadWeekClasses()
+    {
+        if (group_client != null && group_client.Id > 0)
+        {
+            dayClasses = await Shedule.GetWeekSheduleForGroup(dbConnection, currentWeekStart, group_client.Id);
+        }
+    }
+
+    private string GetHallName(int hallNumber)
+    {
+        var hall = halls.FirstOrDefault(h => h.Value == hallNumber);
+        return hallNumber == 0 ? "Без зала" : hall.Text;
+    }
+
+    private string GetHallColor(int hallNumber)
+    {
+        return hallColors.TryGetValue(hallNumber, out var color) ? color : "#6c757d";
+    }
+
+    private int MillisecondsFromTime(DateTime time)
+    {
+        return (int)(time.TimeOfDay).TotalMilliseconds;
+    }
+
+    private DateTime GetDateForDay(string day)
+    {
+        int dayIndex = weekDays.IndexOf(day);
+        return currentWeekStart.AddDays(dayIndex);
+    }
+
+    private bool IsCurrentDay(string day)
+    {
+        return GetDateForDay(day).Date == DateTime.Today.Date;
+    }
+
+    private async Task PreviousWeek()
+    {
+        currentWeekStart = currentWeekStart.AddDays(-7);
+        await LoadWeekClasses();
+    }
+
+    private async Task NextWeek()
+    {
+        currentWeekStart = currentWeekStart.AddDays(7);
+        await LoadWeekClasses();
+    }
+
+    private async Task AddNewClient(Client client)
+    {
+        if (
+            string.IsNullOrWhiteSpace(client.FirstName) ||
+            string.IsNullOrWhiteSpace(client.LastName) ||
+            string.IsNullOrWhiteSpace(newAnket.lv_training) ||
+            string.IsNullOrWhiteSpace(newAnket.goal) ||
+            string.IsNullOrWhiteSpace(newAnket.protivipokazania) ||
+            string.IsNullOrWhiteSpace(ageText))
+        {
+            message = "Все поля обязательны для заполнения";
+            return;
+        }
+        client.role = "Клиент";
+        if (ControlEnter(ageText))
+        {
+            newAnket.age = Int32.Parse(ageText);
+            await Client.AddNewClientForClient(client, newAnket, dbConnection);
+            thisClient = await Client.GetClient(newClient.client_Id, dbConnection);
+            showAddModal = false;
+            message = string.Empty;
+            ageText = string.Empty;
+
+        }
+        else
+        {
+            message = "Введите корректное значение в поле возраст";
+        }
+    }
+
+    private bool ControlEnter(string text)
+    {
+        if (int.TryParse(text, out int number))
+        {
+            return true;
+        }
+        return false;
+    }
+}

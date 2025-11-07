@@ -1,0 +1,83 @@
+﻿<!-- Боковая панель -->
+@using Npgsql
+@inject NavigationManager NavigationManager
+@inject NpgsqlConnection dbConnection
+@using Шилов.Components.Classes;
+<link href="/SideBarStyle.css" rel="stylesheet" />
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet" />
+<div class="sidebar">
+    <div class="sidebar-header">
+        <h2>@client.LastName @client.FirstName</h2>
+    </div>
+
+    <div class="sidebar-menu">
+        <h3>Управление пользователямии абонементами</h3>
+        <ul class="menu-items">
+            <li>
+                <a href="/abonementClient/@ClientId">
+                    <i class="fas fa-ticket-alt"></i>
+                    Абонемент
+                </a>
+            </li>
+            <li>
+                <a href="/clientProfile/@ClientId">
+                    <i class="fas fa-user-cog"></i>
+                    Профиль
+                </a>
+            </li>
+        </ul>
+
+        <h3>Расписание</h3>
+        <ul class="menu-items">
+            <li>
+                <a href="/clientShedule/@ClientId">
+                    <i class="fas fa-calendar-alt"></i>
+                    Расписание
+                </a>
+            </li>
+        </ul>
+
+        <h3>Коммуникации</h3>
+        <ul class="menu-items">
+            <li>
+                <a href="/uved/@ClientId">
+                    <i class="fas fa-bell"></i>
+                    Уведомления
+                </a>
+            </li>
+        </ul>
+
+        <h3>Посещаемость</h3>
+        <ul class="menu-items">
+            <li>
+                <a href="/pos/@ClientId">
+                    <i class="fa-solid fa-user-pen"></i>
+                    Посещаемость
+                </a>
+            </li>
+        </ul>
+
+        <h3>Выход</h3>
+        <ul class="menu-items">
+            <li>
+                <a href="/">
+                    <i class="fa-solid fa-door-open"></i>
+                    Выход
+                </a>
+            </li>
+        </ul>
+    </div>
+</div>
+@code {
+    [Parameter]
+    public int ClientId { get; set; }
+    Client client = new Client();
+    protected override async Task OnInitializedAsync()
+    {
+        client = await Client.GetClient(ClientId, dbConnection);
+    }
+    private bool IsActive(string path)
+    {
+        return NavigationManager.Uri.Contains(path);
+    }
+}

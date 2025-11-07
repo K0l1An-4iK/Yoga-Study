@@ -1,0 +1,39 @@
+using Npgsql;
+using Шилов.Components;
+using Radzen;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddTransient<NpgsqlConnection>(provider =>
+{
+    var configuration = provider.GetRequiredService<IConfiguration>();
+    var connectionString =
+   configuration.GetConnectionString("PostgreSqlConnection");
+    return new NpgsqlConnection(connectionString);
+});
+
+builder.Services.AddRadzenComponents();
+
+// Add services to the container.
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+    app.UseHsts();
+}
+
+app.UseHttpsRedirection();
+
+app.UseStaticFiles();
+app.UseAntiforgery();
+
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode();
+
+app.Run();
