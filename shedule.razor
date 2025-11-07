@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Расписание - Студия йоги</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #6D8B74;
+            --primary-light: #8FBC8F;
+            --primary-dark: #556B56;
+            --secondary: #C1D0B5;
+            --secondary-light: #F0F7EE;
+            --text: #333333;
+            --text-light: #757575;
+            --background: #FAFAFA;
+            --white: #FFFFFF;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            --radius: 12px;
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--background);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header */
+        header {
+            background-color: var(--white);
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 22px;
+        }
+
+        .logo i {
+            font-size: 28px;
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 30px;
+        }
+
+        nav a {
+            text-decoration: none;
+            color: var(--text);
+            font-weight: 500;
+            padding: 8px 12px;
+            border-radius: var(--radius);
+            transition: var(--transition);
+        }
+
+        nav a:hover, nav a.active {
+            background-color: var(--secondary-light);
+            color: var(--primary);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--primary-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--white);
+            font-weight: 600;
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: 40px 0;
+            min-height: calc(100vh - 140px);
+        }
+
+        .page-title {
+            font-size: 28px;
+            margin-bottom: 30px;
+            color: var(--primary-dark);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .page-title i {
+            color: var(--primary);
+        }
+
+        /* Schedule Page */
+        .schedule-filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 10px 20px;
+            background-color: var(--white);
+            border: 1px solid var(--primary-light);
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 500;
+        }
+
+        .filter-btn.active {
+            background-color: var(--primary);
+            color: var(--white);
+            border-color: var(--primary);
+        }
+
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        .schedule-card {
+            background-color: var(--white);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            transition: var(--transition);
+        }
+
+        .schedule-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        .class-header {
+            padding: 20px;
+            background-color: var(--primary);
+            color: var(--white);
+        }
+
+        .class-time {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .class-name {
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .class-details {
+            padding: 20px;
+        }
+
+        .class-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .instructor {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .instructor-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background-color: var(--secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-dark);
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .instructor-name {
+            font-weight: 500;
+        }
+
+        .class-level {
+            padding: 5px 12px;
+            background-color: var(--secondary-light);
+            border-radius: 20px;
+            font-size: 14px;
+            color: var(--primary-dark);
+        }
+
+        .class-description {
+            color: var(--text-light);
+            margin-bottom: 20px;
+            font-size: 15px;
+        }
+
+        .class-action {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .spots-available {
+            font-size: 14px;
+            color: var(--text-light);
+        }
+
+        .book-btn {
+            padding: 10px 20px;
+            background-color: var(--primary);
+            color: var(--white);
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .book-btn:hover {
+            background-color: var(--primary-dark);
+        }
+
+        /* Footer */
+        footer {
+            background-color: var(--primary-dark);
+            color: var(--white);
+            padding: 30px 0;
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 30px;
+        }
+
+        .footer-section {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .footer-title {
+            font-size: 18px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .footer-links {
+            list-style: none;
+        }
+
+        .footer-links li {
+            margin-bottom: 10px;
+        }
+
+        .footer-links a {
+            color: var(--primary-light);
+            text-decoration: none;
+            transition: var(--transition);
+        }
+
+        .footer-links a:hover {
+            color: var(--white);
+        }
+
+        .copyright {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--primary-light);
+            font-size: 14px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .schedule-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .schedule-filters {
+                justify-content: center;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            nav ul {
+                gap: 15px;
+            }
+            
+            .class-info {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .class-action {
+                flex-direction: column;
+                gap: 10px;
+                align-items: stretch;
+            }
+            
+            .book-btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-spa"></i>
+                    <span>Студия йоги</span>
+                </div>
+                <nav>
+                    <ul>
+                        <li><a href="#" class="active">Расписание</a></li>
+                        <li><a href="account.html">Мой аккаунт</a></li>
+                        <li><a href="subscriptions.html">Абонементы</a></li>
+                        <li><a href="#">Инструкторы</a></li>
+                        <li><a href="#">Контакты</a></li>
+                    </ul>
+                </nav>
+                <div class="user-info">
+                    <div class="user-avatar">АК</div>
+                    <span>Анна К.</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            <h1 class="page-title"><i class="far fa-calendar-alt"></i> Расписание занятий</h1>
+            
+            <div class="schedule-filters">
+                <button class="filter-btn active">Все классы</button>
+                <button class="filter-btn">Хатха-йога</button>
+                <button class="filter-btn">Виньяса</button>
+                <button class="filter-btn">Йога для начинающих</button>
+                <button class="filter-btn">Йога-нидра</button>
+            </div>
+            
+            <div class="schedule-grid">
+                <div class="schedule-card">
+                    <div class="class-header">
+                        <div class="class-time">09:00 - 10:30</div>
+                        <div class="class-name">Хатха-йога</div>
+                    </div>
+                    <div class="class-details">
+                        <div class="class-info">
+                            <div class="instructor">
+                                <div class="instructor-avatar">МС</div>
+                                <span class="instructor-name">Мария С.</span>
+                            </div>
+                            <div class="class-level">Начальный</div>
+                        </div>
+                        <p class="class-description">Классическая хатха-йога с акцентом на правильное выполнение асан и дыхательные практики.</p>
+                        <div class="class-action">
+                            <div class="spots-available">Осталось 5 мест</div>
+                            <button class="book-btn">Записаться</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="schedule-card">
+                    <div class="class-header">
+                        <div class="class-time">11:00 - 12:30</div>
+                        <div class="class-name">Виньяса-флоу</div>
+                    </div>
+                    <div class="class-details">
+                        <div class="class-info">
+                            <div class="instructor">
+                                <div class="instructor-avatar">АП</div>
+                                <span class="instructor-name">Алексей П.</span>
+                            </div>
+                            <div class="class-level">Продвинутый</div>
+                        </div>
+                        <p class="class-description">Динамическая практика с плавными переходами между асанами, синхронизированными с дыханием.</p>
+                        <div class="class-action">
+                            <div class="spots-available">Осталось 3 места</div>
+                            <button class="book-btn">Записаться</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="schedule-card">
+                    <div class="class-header">
+                        <div class="class-time">14:00 - 15:00</div>
+                        <div class="class-name">Йога для начинающих</div>
+                    </div>
+                    <div class="class-details">
+                        <div class="class-info">
+                            <div class="instructor">
+                                <div class="instructor-avatar">ОЛ</div>
+                                <span class="instructor-name">Ольга Л.</span>
+                            </div>
+                            <div class="class-level">Начальный</div>
+                        </div>
+                        <p class="class-description">Идеальный класс для тех, кто только начинает свой путь в йоге. Основы асан и дыхания.</p>
+                        <div class="class-action">
+                            <div class="spots-available">Осталось 8 мест</div>
+                            <button class="book-btn">Записаться</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="schedule-card">
+                    <div class="class-header">
+                        <div class="class-time">18:00 - 19:30</div>
+                        <div class="class-name">Йога-нидра</div>
+                    </div>
+                    <div class="class-details">
+                        <div class="class-info">
+                            <div class="instructor">
+                                <div class="instructor-avatar">ИВ</div>
+                                <span class="instructor-name">Ирина В.</span>
+                            </div>
+                            <div class="class-level">Любой уровень</div>
+                        </div>
+                        <p class="class-description">Практика глубокого расслабления и медитации, помогающая снять стресс и напряжение.</p>
+                        <div class="class-action">
+                            <div class="spots-available">Осталось 6 мест</div>
+                            <button class="book-btn">Записаться</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3 class="footer-title">Студия йоги</h3>
+                    <p>Наша миссия — помочь каждому обрести гармонию тела и духа через практику йоги.</p>
+                </div>
+                
+                <div class="footer-section">
+                    <h3 class="footer-title">Контакты</h3>
+                    <ul class="footer-links">
+                        <li><i class="fas fa-map-marker-alt"></i> Москва, ул. Мира, 15</li>
+                        <li><i class="fas fa-phone"></i> +7 (495) 123-45-67</li>
+                        <li><i class="fas fa-envelope"></i> info@yoga-studio.ru</li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h3 class="footer-title">Часы работы</h3>
+                    <ul class="footer-links">
+                        <li>Пн-Пт: 7:00 - 22:00</li>
+                        <li>Сб-Вс: 8:00 - 20:00</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="copyright">
+                &copy; 2023 Студия йоги. Все права защищены.
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Фильтры расписания
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.filter-btn').forEach(item => {
+                    item.classList.remove('active');
+                });
+                this.classList.add('active');
+            });
+        });
+
+        // Кнопки записи
+        document.querySelectorAll('.book-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                alert('Вы успешно записались на занятие!');
+            });
+        });
+    </script>
+</body>
+</html>
