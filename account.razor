@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мой аккаунт - Студия йоги</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #6D8B74;
+            --primary-light: #8FBC8F;
+            --primary-dark: #556B56;
+            --secondary: #C1D0B5;
+            --secondary-light: #F0F7EE;
+            --text: #333333;
+            --text-light: #757575;
+            --background: #FAFAFA;
+            --white: #FFFFFF;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            --radius: 12px;
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--background);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header */
+        header {
+            background-color: var(--white);
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 22px;
+        }
+
+        .logo i {
+            font-size: 28px;
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 30px;
+        }
+
+        nav a {
+            text-decoration: none;
+            color: var(--text);
+            font-weight: 500;
+            padding: 8px 12px;
+            border-radius: var(--radius);
+            transition: var(--transition);
+        }
+
+        nav a:hover, nav a.active {
+            background-color: var(--secondary-light);
+            color: var(--primary);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--primary-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--white);
+            font-weight: 600;
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: 40px 0;
+            min-height: calc(100vh - 140px);
+        }
+
+        .page-title {
+            font-size: 28px;
+            margin-bottom: 30px;
+            color: var(--primary-dark);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .page-title i {
+            color: var(--primary);
+        }
+
+        /* Account Page */
+        .account-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 30px;
+        }
+
+        .account-sidebar {
+            background-color: var(--white);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 25px;
+        }
+
+        .user-profile {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .profile-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background-color: var(--primary-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--white);
+            font-size: 36px;
+            font-weight: 700;
+            margin: 0 auto 15px;
+        }
+
+        .profile-name {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .profile-email {
+            color: var(--text-light);
+            font-size: 15px;
+        }
+
+        .account-menu {
+            list-style: none;
+        }
+
+        .account-menu li {
+            margin-bottom: 10px;
+        }
+
+        .account-menu a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 15px;
+            text-decoration: none;
+            color: var(--text);
+            border-radius: var(--radius);
+            transition: var(--transition);
+        }
+
+        .account-menu a:hover, .account-menu a.active {
+            background-color: var(--secondary-light);
+            color: var(--primary);
+        }
+
+        .account-content {
+            background-color: var(--white);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 30px;
+        }
+
+        .section-title {
+            font-size: 22px;
+            margin-bottom: 25px;
+            color: var(--primary-dark);
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--secondary-light);
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .info-item {
+            margin-bottom: 20px;
+        }
+
+        .info-label {
+            font-size: 14px;
+            color: var(--text-light);
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .edit-btn {
+            padding: 10px 20px;
+            background-color: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition);
+            margin-top: 10px;
+        }
+
+        .edit-btn:hover {
+            background-color: var(--primary);
+            color: var(--white);
+        }
+
+        /* Footer */
+        footer {
+            background-color: var(--primary-dark);
+            color: var(--white);
+            padding: 30px 0;
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 30px;
+        }
+
+        .footer-section {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .footer-title {
+            font-size: 18px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .footer-links {
+            list-style: none;
+        }
+
+        .footer-links li {
+            margin-bottom: 10px;
+        }
+
+        .footer-links a {
+            color: var(--primary-light);
+            text-decoration: none;
+            transition: var(--transition);
+        }
+
+        .footer-links a:hover {
+            color: var(--white);
+        }
+
+        .copyright {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--primary-light);
+            font-size: 14px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .account-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            nav ul {
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-spa"></i>
+                    <span>Студия йоги</span>
+                </div>
+                <nav>
+                    <ul>
+                        <li><a href="schedule.html">Расписание</a></li>
+                        <li><a href="#" class="active">Мой аккаунт</a></li>
+                        <li><a href="subscriptions.html">Абонементы</a></li>
+                        <li><a href="#">Инструкторы</a></li>
+                        <li><a href="#">Контакты</a></li>
+                    </ul>
+                </nav>
+                <div class="user-info">
+                    <div class="user-avatar">АК</div>
+                    <span>Анна К.</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            <h1 class="page-title"><i class="far fa-user"></i> Мой аккаунт</h1>
+            
+            <div class="account-container">
+                <div class="account-sidebar">
+                    <div class="user-profile">
+                        <div class="profile-avatar">АК</div>
+                        <div class="profile-name">Анна Ковалева</div>
+                        <div class="profile-email">anna.k@example.com</div>
+                    </div>
+                    
+                    <ul class="account-menu">
+                        <li><a href="#" class="active"><i class="fas fa-user-circle"></i> Личная информация</a></li>
+                        <li><a href="#"><i class="fas fa-history"></i> История посещений</a></li>
+                        <li><a href="#"><i class="fas fa-credit-card"></i> Способы оплаты</a></li>
+                        <li><a href="#"><i class="fas fa-cog"></i> Настройки</a></li>
+                        <li><a href="#"><i class="fas fa-question-circle"></i> Помощь</a></li>
+                    </ul>
+                </div>
+                
+                <div class="account-content">
+                    <h2 class="section-title">Личная информация</h2>
+                    
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Имя</div>
+                            <div class="info-value">Анна</div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-label">Фамилия</div>
+                            <div class="info-value">Ковалева</div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-label">Электронная почта</div>
+                            <div class="info-value">anna.k@example.com</div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-label">Телефон</div>
+                            <div class="info-value">+7 (912) 345-67-89</div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-label">Дата рождения</div>
+                            <div class="info-value">15 марта 1990</div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-label">Уровень подготовки</div>
+                            <div class="info-value">Средний</div>
+                        </div>
+                    </div>
+                    
+                    <button class="edit-btn">Редактировать информацию</button>
+                    
+                    <h2 class="section-title" style="margin-top: 40px;">Медицинская информация</h2>
+                    
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Состояние здоровья</div>
+                            <div class="info-value">Нормальное</div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-label">Предупреждения</div>
+                            <div class="info-value">Нет</div>
+                        </div>
+                    </div>
+                    
+                    <button class="edit-btn">Обновить медицинскую информацию</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3 class="footer-title">Студия йоги</h3>
+                    <p>Наша миссия — помочь каждому обрести гармонию тела и духа через практику йоги.</p>
+                </div>
+                
+                <div class="footer-section">
+                    <h3 class="footer-title">Контакты</h3>
+                    <ul class="footer-links">
+                        <li><i class="fas fa-map-marker-alt"></i> Москва, ул. Мира, 15</li>
+                        <li><i class="fas fa-phone"></i> +7 (495) 123-45-67</li>
+                        <li><i class="fas fa-envelope"></i> info@yoga-studio.ru</li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h3 class="footer-title">Часы работы</h3>
+                    <ul class="footer-links">
+                        <li>Пн-Пт: 7:00 - 22:00</li>
+                        <li>Сб-Вс: 8:00 - 20:00</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="copyright">
+                &copy; 2023 Студия йоги. Все права защищены.
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        document.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                alert('Функция редактирования будет доступна в ближайшее время!');
+            });
+        });
+    </script>
+</body>
+</html>
